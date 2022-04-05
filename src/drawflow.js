@@ -1181,9 +1181,9 @@ export default class Drawflow {
         });
       }
 
-      ele.parentElement.querySelectorAll(".main-path").forEach((item, i) => {
-        item.classList.remove("selected");
-      });
+      ele.parentElement
+        .querySelectorAll(".main-path.selected")
+        .forEach((item) => item.classList.remove("selected"));
     } else {
       this.drawflow.drawflow[this.module].data[output_id].outputs[
         output_class
@@ -2113,16 +2113,21 @@ export default class Drawflow {
   }
 
   getModuleFromNodeId(id) {
-    var nameModule;
     const editor = this.drawflow.drawflow;
-    Object.keys(editor).map(function (moduleName, index) {
-      Object.keys(editor[moduleName].data).map(function (node, index2) {
-        if (node == id) {
-          nameModule = moduleName;
+
+    for (const moduleName in editor) {
+      if (Object.hasOwnProperty.call(editor, moduleName)) {
+        const moduleData = editor[moduleName].data;
+        for (const nodeId in moduleData) {
+          if (
+            Object.hasOwnProperty.call(moduleData, nodeId) &&
+            nodeId === id.toString()
+          ) {
+            return moduleName;
+          }
         }
-      });
-    });
-    return nameModule;
+      }
+    }
   }
 
   addModule(name) {
