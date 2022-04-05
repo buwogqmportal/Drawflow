@@ -181,7 +181,7 @@ export default class Drawflow {
 
     for (const moduleName in editor) {
       if (Object.hasOwnProperty.call(editor, moduleName)) {
-        const moduleData = editor[moduleName];
+        const moduleData = editor[moduleName].data;
         for (const id in moduleData) {
           if (Object.hasOwnProperty.call(moduleData, id)) {
             number = Math.max(number, parseInt(id) + 1);
