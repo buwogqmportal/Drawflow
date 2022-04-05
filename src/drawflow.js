@@ -647,8 +647,8 @@ export default class Drawflow {
   }
 
   zoom_enter(event) {
+    event.preventDefault();
     if (event.ctrlKey) {
-      event.preventDefault();
       this.change_zoom(-event.deltaY);
     } else {
       this.canvas_x -= event.deltaX;
