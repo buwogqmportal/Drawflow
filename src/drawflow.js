@@ -52,7 +52,7 @@ export default class Drawflow {
     // Configurable options
     this.module = "Home";
     this.editor_mode = "edit";
-    this.zoom = 0;
+    this.zoom = 1;
     this.zoom_max = 1.6;
     this.zoom_min = 0.5;
     this.zoom_value = 0.1;
@@ -63,12 +63,13 @@ export default class Drawflow {
     this.prevDiff = -1;
   }
 
-  getZoom() {
-    return Math.exp(this.zoom / 100);
+  get zoomLevel() {
+    return Math.log(this.zoom);
   }
 
-  setZoom(value) {
-    this.zoom = Math.log(value) * 100;
+  set zoomLevel(value) {
+    this.zoom = Math.exp(value);
+    this.refreshZoom();
   }
 
   start() {
@@ -80,42 +81,45 @@ export default class Drawflow {
     this.container.appendChild(this.precanvas);
 
     /* Mouse and Touch Actions */
-    this.container.addEventListener("mouseup", this.dragEnd.bind(this));
-    this.container.addEventListener("mousemove", this.position.bind(this));
-    this.container.addEventListener("mousedown", this.click.bind(this));
+    this.container.addEventListener("mouseup", this._dragEnd.bind(this));
+    this.container.addEventListener("mousemove", this._position.bind(this));
+    this.container.addEventListener("mousedown", this._click.bind(this));
 
-    this.container.addEventListener("touchend", this.dragEnd.bind(this));
-    this.container.addEventListener("touchmove", this.position.bind(this));
-    this.container.addEventListener("touchstart", this.click.bind(this));
+    this.container.addEventListener("touchend", this._dragEnd.bind(this));
+    this.container.addEventListener("touchmove", this._position.bind(this));
+    this.container.addEventListener("touchstart", this._click.bind(this));
 
     /* Context Menu */
-    this.container.addEventListener("contextmenu", this.contextmenu.bind(this));
+    this.container.addEventListener(
+      "contextmenu",
+      this._contextmenu.bind(this)
+    );
     /* Delete */
-    this.container.addEventListener("keydown", this.key.bind(this));
+    this.container.addEventListener("keydown", this._key.bind(this));
 
     /* Zoom Mouse */
-    this.container.addEventListener("wheel", this.zoom_enter.bind(this));
+    this.container.addEventListener("wheel", this._handleZoom.bind(this));
     /* Update data Nodes */
     this.container.addEventListener("input", this.updateNodeValue.bind(this));
 
-    this.container.addEventListener("dblclick", this.dblclick.bind(this));
+    this.container.addEventListener("dblclick", this._dblclick.bind(this));
     /* Mobile zoom */
-    // this.container.onpointerdown = this.pointerdown_handler.bind(this);
-    // this.container.onpointermove = this.pointermove_handler.bind(this);
-    // this.container.onpointerup = this.pointerup_handler.bind(this);
-    // this.container.onpointercancel = this.pointerup_handler.bind(this);
-    // this.container.onpointerout = this.pointerup_handler.bind(this);
-    // this.container.onpointerleave = this.pointerup_handler.bind(this);
+    this.container.onpointerdown = this._handlePointerdown.bind(this);
+    this.container.onpointermove = this._handlePointermove.bind(this);
+    this.container.onpointerup = this._handlePointerup.bind(this);
+    this.container.onpointercancel = this._handlePointerup.bind(this);
+    this.container.onpointerout = this._handlePointerup.bind(this);
+    this.container.onpointerleave = this._handlePointerup.bind(this);
 
     this.load();
   }
 
   /* Mobile zoom */
-  pointerdown_handler(ev) {
+  _handlePointerdown(ev) {
     this.evCache.push(ev);
   }
 
-  pointermove_handler(ev) {
+  _handlePointermove(ev) {
     for (var i = 0; i < this.evCache.length; i++) {
       if (ev.pointerId == this.evCache[i].pointerId) {
         this.evCache[i] = ev;
@@ -131,26 +135,27 @@ export default class Drawflow {
         if (curDiff > this.prevDiff) {
           // The distance between the two pointers has increased
 
-          this.zoom_in();
+          this.zoomIn();
         }
         if (curDiff < this.prevDiff) {
           // The distance between the two pointers has decreased
-          this.zoom_out();
+          this.zoomOut();
         }
       }
       this.prevDiff = curDiff;
     }
   }
 
-  pointerup_handler(ev) {
-    this.remove_event(ev);
+  _handlePointerup(ev) {
+    this._removeEvent(ev);
     if (this.evCache.length < 2) {
       this.prevDiff = -1;
     }
   }
-  remove_event(ev) {
+
+  _removeEvent(ev) {
     // Remove this event from the target's cache
-    for (var i = 0; i < this.evCache.length; i++) {
+    for (var i = this.evCache.length - 1; i >= 0; i--) {
       if (this.evCache[i].pointerId == ev.pointerId) {
         this.evCache.splice(i, 1);
         break;
@@ -158,9 +163,10 @@ export default class Drawflow {
     }
   }
   /* End Mobile Zoom */
+
   load() {
     for (const key in this.drawflow.drawflow[this.module].data) {
-      this.addNodeImport(
+      this._addNodeImport(
         this.drawflow.drawflow[this.module].data[key],
         this.precanvas
       );
@@ -168,12 +174,12 @@ export default class Drawflow {
 
     if (this.reroute) {
       for (const key in this.drawflow.drawflow[this.module].data) {
-        this.addRerouteImport(this.drawflow.drawflow[this.module].data[key]);
+        this._addRerouteImport(this.drawflow.drawflow[this.module].data[key]);
       }
     }
 
     for (const key in this.drawflow.drawflow[this.module].data) {
-      this.updateConnectionNodes("node-" + key);
+      this.updateNodeConnections("node-" + key);
     }
 
     const editor = this.drawflow.drawflow;
@@ -193,19 +199,36 @@ export default class Drawflow {
     this.nodeId = number;
   }
 
-  removeReouteConnectionSelected() {
+  unselectConnectionReroutes() {
     this.dispatch("connectionUnselected", true);
     if (this.reroute_fix_curvature) {
       this.connection_selected.parentElement
         .querySelectorAll(".main-path")
-        .forEach((item, i) => {
+        .forEach((item) => {
           item.classList.remove("selected");
         });
     }
   }
 
-  click(e) {
+  _click(e) {
+    const editor = this;
+    function clearSelection() {
+      if (editor.node_selected != null) {
+        editor.node_selected.classList.remove("selected");
+        if (editor.node_selected != editor.ele_selected) {
+          editor.dispatch("nodeUnselected", true);
+        }
+      }
+      if (editor.connection_selected != null) {
+        editor.connection_selected.classList.remove("selected");
+        editor.unselectConnectionReroutes();
+        editor.connection_selected = null;
+      }
+    }
+
     this.dispatch("click", e);
+
+    // get selected element
     if (this.editor_mode === "fixed") {
       if (
         e.target.classList[0] === "parent-drawflow" ||
@@ -227,7 +250,7 @@ export default class Drawflow {
       this.first_click = e.target;
       this.ele_selected = e.target;
       if (e.button === 0) {
-        this.contextmenuDel();
+        this._contextmenuDel();
       }
 
       if (e.target.closest(".drawflow_content_node") != null) {
@@ -236,24 +259,19 @@ export default class Drawflow {
         ).parentElement;
       }
     }
+
     switch (this.ele_selected.classList[0]) {
       case "drawflow-node":
-        if (this.node_selected != null) {
-          this.node_selected.classList.remove("selected");
-          if (this.node_selected != this.ele_selected) {
-            this.dispatch("nodeUnselected", true);
-          }
-        }
-        if (this.connection_selected != null) {
-          this.connection_selected.classList.remove("selected");
-          this.removeReouteConnectionSelected();
-          this.connection_selected = null;
-        }
+        clearSelection();
+
         if (this.node_selected != this.ele_selected) {
           this.dispatch("nodeSelected", getNodeID(this.ele_selected.id));
         }
+
         this.node_selected = this.ele_selected;
         this.node_selected.classList.add("selected");
+
+        // cancel drag if an input element was clicked on
         if (!this.draggable_inputs) {
           if (
             e.target.tagName !== "INPUT" &&
@@ -271,43 +289,17 @@ export default class Drawflow {
         break;
       case "output":
         this.connection = true;
-        if (this.node_selected != null) {
-          this.node_selected.classList.remove("selected");
-          this.node_selected = null;
-          this.dispatch("nodeUnselected", true);
-        }
-        if (this.connection_selected != null) {
-          this.connection_selected.classList.remove("selected");
-          this.removeReouteConnectionSelected();
-          this.connection_selected = null;
-        }
-        this.drawConnection(e.target);
+        clearSelection();
+        this._createConnection(e.target);
         break;
       case "parent-drawflow":
       case "drawflow":
-        if (this.node_selected != null) {
-          this.node_selected.classList.remove("selected");
-          this.node_selected = null;
-          this.dispatch("nodeUnselected", true);
-        }
-        if (this.connection_selected != null) {
-          this.connection_selected.classList.remove("selected");
-          this.removeReouteConnectionSelected();
-          this.connection_selected = null;
-        }
+        clearSelection();
         this.editor_selected = e.type === "touchstart" || e.button === 1;
         break;
       case "main-path":
-        if (this.node_selected != null) {
-          this.node_selected.classList.remove("selected");
-          this.node_selected = null;
-          this.dispatch("nodeUnselected", true);
-        }
-        if (this.connection_selected != null) {
-          this.connection_selected.classList.remove("selected");
-          this.removeReouteConnectionSelected();
-          this.connection_selected = null;
-        }
+        clearSelection();
+
         this.connection_selected = this.ele_selected;
         this.connection_selected.classList.add("selected");
 
@@ -334,23 +326,14 @@ export default class Drawflow {
         }
 
         if (this.connection_selected) {
-          this.removeConnection();
+          this.removeSelectedConnection();
         }
 
-        if (this.node_selected != null) {
-          this.node_selected.classList.remove("selected");
-          this.node_selected = null;
-          this.dispatch("nodeUnselected", true);
-        }
-        if (this.connection_selected != null) {
-          this.connection_selected.classList.remove("selected");
-          this.removeReouteConnectionSelected();
-          this.connection_selected = null;
-        }
-
+        clearSelection();
         break;
       default:
     }
+
     if (e.type === "touchstart") {
       this.pos_x = e.touches[0].clientX;
       this.pos_x_start = e.touches[0].clientX;
@@ -362,10 +345,11 @@ export default class Drawflow {
       this.pos_y = e.clientY;
       this.pos_y_start = e.clientY;
     }
+
     this.dispatch("clickEnd", e);
   }
 
-  position(e) {
+  _position(e) {
     if (e.type === "touchmove") {
       var e_pos_x = e.touches[0].clientX;
       var e_pos_y = e.touches[0].clientY;
@@ -375,21 +359,23 @@ export default class Drawflow {
     }
 
     if (this.connection) {
-      this.drawConnectionTo(e_pos_x, e_pos_y);
+      this._drawConnectionTo(e_pos_x, e_pos_y);
     }
+
     if (this.editor_selected) {
       const x = this.canvas_x - this.pos_x + e_pos_x;
       const y = this.canvas_y - this.pos_y + e_pos_y;
       this.dispatch("translate", { x: x, y: y });
       this.precanvas.style.transform =
-        "translate(" + x + "px, " + y + "px) scale(" + this.getZoom() + ")";
+        "translate(" + x + "px, " + y + "px) scale(" + this.zoom + ")";
     }
+
     if (this.drag) {
       const moduleData = this.drawflow.drawflow[this.module].data;
       const selectedID = getNodeID(this.ele_selected.id);
 
-      const x = (this.pos_x - e_pos_x) / this.getZoom();
-      const y = (this.pos_y - e_pos_y) / this.getZoom();
+      const x = (this.pos_x - e_pos_x) / this.zoom;
+      const y = (this.pos_y - e_pos_y) / this.zoom;
       this.pos_x = e_pos_x;
       this.pos_y = e_pos_y;
 
@@ -399,7 +385,7 @@ export default class Drawflow {
       moduleData[selectedID].pos_x = this.ele_selected.offsetLeft - x;
       moduleData[selectedID].pos_y = this.ele_selected.offsetTop - y;
 
-      this.updateConnectionNodes(this.ele_selected.id);
+      this.updateNodeConnections(this.ele_selected.id);
     }
 
     if (this.drag_point) {
@@ -409,11 +395,9 @@ export default class Drawflow {
       this.pos_y = e_pos_y;
 
       var pos_x =
-        (this.pos_x - this.precanvas.getBoundingClientRect().x) *
-        this.getZoom();
+        (this.pos_x - this.precanvas.getBoundingClientRect().x) * this.zoom;
       var pos_y =
-        (this.pos_y - this.precanvas.getBoundingClientRect().y) *
-        this.getZoom();
+        (this.pos_y - this.precanvas.getBoundingClientRect().y) * this.zoom;
 
       this.ele_selected.setAttributeNS(null, "cx", pos_x);
       this.ele_selected.setAttributeNS(null, "cy", pos_y);
@@ -449,7 +433,7 @@ export default class Drawflow {
         pos_y: pos_y,
       };
 
-      this.updateConnectionNodes(`node-${output_id}`);
+      this.updateNodeConnections(`node-${output_id}`);
     }
 
     if (e.type === "touchmove") {
@@ -459,7 +443,7 @@ export default class Drawflow {
     this.dispatch("mouseMove", { x: e_pos_x, y: e_pos_y });
   }
 
-  dragEnd(e) {
+  _dragEnd(e) {
     if (e.type === "touchend") {
       var e_pos_x = this.mouse_x;
       var e_pos_y = this.mouse_y;
@@ -553,8 +537,8 @@ export default class Drawflow {
             this.drawflow.drawflow[this.module].data[id_input].inputs[
               input_class
             ].connections.push({ node: id_output, input: output_class });
-            this.updateConnectionNodes("node-" + id_output);
-            this.updateConnectionNodes("node-" + id_input);
+            this.updateNodeConnections("node-" + id_output);
+            this.updateNodeConnections("node-" + id_input);
             this.dispatch("connectionCreated", {
               output_id: id_output,
               input_id: id_input,
@@ -589,7 +573,8 @@ export default class Drawflow {
 
     this.dispatch("mouseUp", e);
   }
-  contextmenu(e) {
+
+  _contextmenu(e) {
     this.dispatch("contextmenu", e);
     e.preventDefault();
     if (this.editor_mode === "fixed" || this.editor_mode === "view") {
@@ -607,25 +592,26 @@ export default class Drawflow {
       }
       if (this.connection_selected) {
         deletebox.style.top =
-          e.clientY * this.getZoom() -
-          this.precanvas.getBoundingClientRect().y * this.getZoom() +
+          e.clientY * this.zoom -
+          this.precanvas.getBoundingClientRect().y * this.zoom +
           "px";
         deletebox.style.left =
-          e.clientX * this.getZoom() -
-          this.precanvas.getBoundingClientRect().x * this.getZoom() +
+          e.clientX * this.zoom -
+          this.precanvas.getBoundingClientRect().x * this.zoom +
           "px";
 
         this.precanvas.appendChild(deletebox);
       }
     }
   }
-  contextmenuDel() {
+
+  _contextmenuDel() {
     if (this.precanvas.getElementsByClassName("drawflow-delete").length) {
       this.precanvas.getElementsByClassName("drawflow-delete")[0].remove();
     }
   }
 
-  key(e) {
+  _key(e) {
     this.dispatch("keydown", e);
     if (this.editor_mode === "fixed" || this.editor_mode === "view") {
       return false;
@@ -641,15 +627,15 @@ export default class Drawflow {
         }
       }
       if (this.connection_selected != null) {
-        this.removeConnection();
+        this.removeSelectedConnection();
       }
     }
   }
 
-  zoom_enter(event) {
+  _handleZoom(event) {
     event.preventDefault();
     if (event.ctrlKey) {
-      this.change_zoom(-event.deltaY);
+      this.zoomLevel -= event.deltaY / 100;
     } else {
       this.canvas_x -= event.deltaX;
       this.canvas_y -= event.deltaY;
@@ -660,22 +646,17 @@ export default class Drawflow {
         "px, " +
         this.canvas_y +
         "px) scale(" +
-        this.getZoom() +
+        this.zoom +
         ")";
     }
   }
-  zoom_refresh() {
-    this.zoom = Math.min(
-      Math.max(Math.log(this.zoom_min) * 100, this.zoom),
-      Math.log(this.zoom_max) * 100
-    );
 
-    var zoom_last_value = Math.exp(this.zoom_last_value / 100);
-    var zoom = this.getZoom();
+  refreshZoom() {
+    this.zoom = Math.min(Math.max(this.zoom_min, this.zoom), this.zoom_max);
 
     this.dispatch("zoom", this.zoom);
-    this.canvas_x = (this.canvas_x / zoom_last_value) * zoom;
-    this.canvas_y = (this.canvas_y / zoom_last_value) * zoom;
+    this.canvas_x = (this.canvas_x / this.zoom_last_value) * this.zoom;
+    this.canvas_y = (this.canvas_y / this.zoom_last_value) * this.zoom;
     this.zoom_last_value = this.zoom;
     this.precanvas.style.transform =
       "translate(" +
@@ -683,29 +664,22 @@ export default class Drawflow {
       "px, " +
       this.canvas_y +
       "px) scale(" +
-      zoom +
+      this.zoom +
       ")";
   }
-  change_zoom(value = this.zoom_value) {
-    this.zoom += value;
-    this.zoom_refresh();
+
+  zoomIn(value = this.zoom_value) {
+    this.zoomLevel += value;
   }
-  zoom_in(value = this.zoom_value) {
-    if (this.zoom < this.zoom_max) {
-      this.zoom += value;
-      this.zoom_refresh();
-    }
+
+  zoomOut(value = this.zoom_value) {
+    this.zoomLevel -= value;
   }
-  zoom_out(value = this.zoom_value) {
-    if (this.zoom > this.zoom_min) {
-      this.zoom -= value;
-      this.zoom_refresh();
-    }
-  }
-  zoom_reset() {
+
+  resetZoom() {
     if (this.zoom != 1) {
       this.zoom = 1;
-      this.zoom_refresh();
+      this.refreshZoom();
     }
   }
 
@@ -714,124 +688,34 @@ export default class Drawflow {
     start_pos_y,
     end_pos_x,
     end_pos_y,
-    curvature_value,
+    curvature,
     type
   ) {
-    var line_x = start_pos_x;
-    var line_y = start_pos_y;
-    var x = end_pos_x;
-    var y = end_pos_y;
-    var curvature = curvature_value;
-    //type openclose open close other
-    switch (type) {
-      case "open":
-        if (start_pos_x >= end_pos_x) {
-          var hx1 = line_x + Math.abs(x - line_x) * curvature;
-          var hx2 = x - Math.abs(x - line_x) * (curvature * -1);
-        } else {
-          var hx1 = line_x + Math.abs(x - line_x) * curvature;
-          var hx2 = x - Math.abs(x - line_x) * curvature;
-        }
-        return (
-          " M " +
-          line_x +
-          " " +
-          line_y +
-          " C " +
-          hx1 +
-          " " +
-          line_y +
-          " " +
-          hx2 +
-          " " +
-          y +
-          " " +
-          x +
-          "  " +
-          y
-        );
+    const line_x = start_pos_x;
+    const line_y = start_pos_y;
+    const x = end_pos_x;
+    const y = end_pos_y;
 
-        break;
-      case "close":
-        if (start_pos_x >= end_pos_x) {
-          var hx1 = line_x + Math.abs(x - line_x) * (curvature * -1);
-          var hx2 = x - Math.abs(x - line_x) * curvature;
-        } else {
-          var hx1 = line_x + Math.abs(x - line_x) * curvature;
-          var hx2 = x - Math.abs(x - line_x) * curvature;
-        }
-        return (
-          " M " +
-          line_x +
-          " " +
-          line_y +
-          " C " +
-          hx1 +
-          " " +
-          line_y +
-          " " +
-          hx2 +
-          " " +
-          y +
-          " " +
-          x +
-          "  " +
-          y
-        );
-        break;
-      case "other":
-        if (start_pos_x >= end_pos_x) {
-          var hx1 = line_x + Math.abs(x - line_x) * (curvature * -1);
-          var hx2 = x - Math.abs(x - line_x) * (curvature * -1);
-        } else {
-          var hx1 = line_x + Math.abs(x - line_x) * curvature;
-          var hx2 = x - Math.abs(x - line_x) * curvature;
-        }
-        return (
-          " M " +
-          line_x +
-          " " +
-          line_y +
-          " C " +
-          hx1 +
-          " " +
-          line_y +
-          " " +
-          hx2 +
-          " " +
-          y +
-          " " +
-          x +
-          "  " +
-          y
-        );
-        break;
-      default:
-        var hx1 = line_x + Math.abs(x - line_x) * curvature;
-        var hx2 = x - Math.abs(x - line_x) * curvature;
+    const handleSize = Math.abs(x - line_x) * curvature;
+    const handleStartDir = type === "open" && type !== "other" ? -1 : 1;
+    const handleEndDir = type === "close" && type !== "other" ? -1 : 1;
 
-        return (
-          " M " +
-          line_x +
-          " " +
-          line_y +
-          " C " +
-          hx1 +
-          " " +
-          line_y +
-          " " +
-          hx2 +
-          " " +
-          y +
-          " " +
-          x +
-          "  " +
-          y
-        );
-    }
+    return (
+      "M" +
+      [line_x, line_y].join() +
+      "C" +
+      [
+        line_x + handleSize * handleStartDir,
+        line_y,
+        x - handleSize * handleEndDir,
+        y,
+        x,
+        y,
+      ].join()
+    );
   }
 
-  drawConnection(ele) {
+  _createConnection(ele) {
     var connection = document.createElementNS(
       "http://www.w3.org/2000/svg",
       "svg"
@@ -854,9 +738,9 @@ export default class Drawflow {
     });
   }
 
-  drawConnectionTo(eX, eY) {
+  _drawConnectionTo(eX, eY) {
     const precanvas = this.precanvas;
-    const zoom = this.getZoom();
+    const zoom = this.zoom;
 
     const precanvasRect = precanvas.getBoundingClientRect();
     var path = this.connection_ele.children[0];
@@ -871,8 +755,8 @@ export default class Drawflow {
 
     const [fromX, fromY] = getCenter(this.ele_selected);
 
-    var toX = (eX - this.precanvas.getBoundingClientRect().x) * zoom;
-    var toY = (eY - this.precanvas.getBoundingClientRect().y) * zoom;
+    var toX = (eX - this.precanvas.getBoundingClientRect().x) / zoom;
+    var toY = (eY - this.precanvas.getBoundingClientRect().y) / zoom;
 
     var curvature = this.curvature;
     var lineCurve = this.createCurvature(
@@ -936,8 +820,8 @@ export default class Drawflow {
         connection.classList.add(input_class);
         connection.appendChild(path);
         this.precanvas.appendChild(connection);
-        this.updateConnectionNodes("node-" + id_output);
-        this.updateConnectionNodes("node-" + id_input);
+        this.updateNodeConnections("node-" + id_output);
+        this.updateNodeConnections("node-" + id_input);
       }
 
       this.dispatch("connectionCreated", {
@@ -958,7 +842,7 @@ export default class Drawflow {
     const reroute_curvature_start_end = this.reroute_curvature_start_end;
     const reroute_fix_curvature = this.reroute_fix_curvature;
     const rerouteWidth = this.reroute_width;
-    const zoom = this.getZoom();
+    const zoom = this.zoom;
 
     if (!nodeFromElem) {
       const nodeFromID = connection.classList[2].replace("node_out_", "");
@@ -1069,7 +953,7 @@ export default class Drawflow {
     }
   }
 
-  updateConnectionNodes(id) {
+  updateNodeConnections(id) {
     const connectionInTag = "node_in_" + id;
     const connectionOutTag = "node_out_" + id;
     const container = this.container;
@@ -1089,7 +973,7 @@ export default class Drawflow {
     }
   }
 
-  dblclick(e) {
+  _dblclick(e) {
     if (this.connection_selected != null && this.reroute) {
       this.createReroutePoint(this.connection_selected);
     }
@@ -1111,9 +995,9 @@ export default class Drawflow {
     );
     point.classList.add("point");
     const pos_x =
-      (this.pos_x - this.precanvas.getBoundingClientRect().x) * this.getZoom();
+      (this.pos_x - this.precanvas.getBoundingClientRect().x) * this.zoom;
     const pos_y =
-      (this.pos_y - this.precanvas.getBoundingClientRect().y) * this.getZoom();
+      (this.pos_y - this.precanvas.getBoundingClientRect().y) * this.zoom;
 
     point.setAttributeNS(null, "cx", pos_x);
     point.setAttributeNS(null, "cy", pos_y);
@@ -1194,7 +1078,7 @@ export default class Drawflow {
     }
 
     this.dispatch("addReroute", output_id);
-    this.updateConnectionNodes(output_id);
+    this.updateNodeConnections(output_id);
   }
 
   removeReroutePoint(ele) {
@@ -1225,7 +1109,7 @@ export default class Drawflow {
 
     ele.remove();
     this.dispatch("removeReroute", output_id);
-    this.updateConnectionNodes(`node-${output_id}`);
+    this.updateNodeConnections(`node-${output_id}`);
   }
 
   registerNode(name, html, props = null, options = null) {
@@ -1238,6 +1122,7 @@ export default class Drawflow {
       JSON.stringify(this.drawflow.drawflow[moduleName].data[id])
     );
   }
+
   getNodesFromName(name) {
     var nodes = [];
     const editor = this.drawflow.drawflow;
@@ -1392,7 +1277,7 @@ export default class Drawflow {
     return newNodeId;
   }
 
-  addNodeImport(dataNode, precanvas) {
+  _addNodeImport(dataNode, precanvas) {
     const parent = document.createElement("div");
     parent.classList.add("parent-node");
 
@@ -1533,7 +1418,7 @@ export default class Drawflow {
     this.precanvas.appendChild(parent);
   }
 
-  addRerouteImport(dataNode) {
+  _addRerouteImport(dataNode) {
     const reroute_width = this.reroute_width;
     const reroute_fix_curvature = this.reroute_fix_curvature;
     const container = this.container;
@@ -1683,7 +1568,7 @@ export default class Drawflow {
       input.classList.add("input_" + (numInputs + 1));
       const parent = this.container.querySelector("#node-" + id + " .inputs");
       parent.appendChild(input);
-      this.updateConnectionNodes("node-" + id);
+      this.updateNodeConnections("node-" + id);
     }
     this.drawflow.drawflow[moduleName].data[id].inputs[
       "input_" + (numInputs + 1)
@@ -1701,7 +1586,7 @@ export default class Drawflow {
       output.classList.add("output_" + (numOutputs + 1));
       const parent = this.container.querySelector("#node-" + id + " .outputs");
       parent.appendChild(output);
-      this.updateConnectionNodes("node-" + id);
+      this.updateNodeConnections("node-" + id);
     }
     this.drawflow.drawflow[moduleName].data[id].outputs[
       "output_" + (numOutputs + 1)
@@ -1728,7 +1613,7 @@ export default class Drawflow {
     });
     // Remove connections
     removeInputs.forEach((item, i) => {
-      this.removeSingleConnection(
+      this.removeConnection(
         item.id_output,
         item.id,
         item.output_class,
@@ -1812,7 +1697,7 @@ export default class Drawflow {
         }
       });
     });
-    this.updateConnectionNodes("node-" + id);
+    this.updateNodeConnections("node-" + id);
   }
 
   removeNodeOutput(id, output_class) {
@@ -1835,7 +1720,7 @@ export default class Drawflow {
     });
     // Remove connections
     removeOutputs.forEach((item, i) => {
-      this.removeSingleConnection(
+      this.removeConnection(
         item.id,
         item.id_input,
         item.output_class,
@@ -1922,11 +1807,11 @@ export default class Drawflow {
       });
     });
 
-    this.updateConnectionNodes("node-" + id);
+    this.updateNodeConnections("node-" + id);
   }
 
   removeNodeId(id) {
-    this.removeConnectionNodeId(id);
+    this.removeNodeConnectionsByNodeID(id);
     var moduleName = this.getModuleFromNodeId(getNodeID(id));
     if (this.module === moduleName) {
       this.container.querySelector(`#${id}`).remove();
@@ -1935,7 +1820,7 @@ export default class Drawflow {
     this.dispatch("nodeRemoved", getNodeID(id));
   }
 
-  removeConnection() {
+  removeSelectedConnection() {
     if (this.connection_selected != null) {
       const elem = this.connection_selected.parentElement;
 
@@ -1973,7 +1858,7 @@ export default class Drawflow {
     }
   }
 
-  removeSingleConnection(id_output, id_input, output_class, input_class) {
+  removeConnection(id_output, id_input, output_class, input_class) {
     var nodeOneModule = this.getModuleFromNodeId(id_output);
     var nodeTwoModule = this.getModuleFromNodeId(id_input);
     if (nodeOneModule === nodeTwoModule) {
@@ -2035,7 +1920,7 @@ export default class Drawflow {
     }
   }
 
-  removeConnectionNodeId(id) {
+  removeNodeConnectionsByNodeID(id) {
     const connectionInTag = "node_in_" + id;
     const connectionOutTag = "node_out_" + id;
 
@@ -2134,6 +2019,7 @@ export default class Drawflow {
     this.drawflow.drawflow[name] = { data: {} };
     this.dispatch("moduleCreated", name);
   }
+
   changeModule(name) {
     this.dispatch("moduleChanged", name);
     this.module = name;
@@ -2158,15 +2044,20 @@ export default class Drawflow {
     this.dispatch("moduleRemoved", name);
   }
 
-  clearModuleSelected() {
-    this.precanvas.innerHTML = "";
+  clearSelectedModule() {
+    while (this.precanvas.hasChildNodes()) {
+      this.precanvas.firstChild.remove();
+    }
     this.drawflow.drawflow[this.module] = { data: {} };
   }
 
   clear() {
-    this.precanvas.innerHTML = "";
+    while (this.precanvas.hasChildNodes()) {
+      this.precanvas.firstChild.remove();
+    }
     this.drawflow = { drawflow: { Home: { data: {} } } };
   }
+
   export() {
     const dataExport = JSON.parse(JSON.stringify(this.drawflow));
     this.dispatch("export", dataExport);
