@@ -337,7 +337,7 @@ export default class Drawflow {
           break;
       }
 
-      if (this.ele_selected.classList.has("parent-drawflow")) {
+      if (this.ele_selected.classList.contains("parent-drawflow")) {
         clearSelection();
         this.editor_selected = e.type === "touchstart";
       }
