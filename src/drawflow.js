@@ -228,110 +228,119 @@ export default class Drawflow {
 
     this.dispatch("click", e);
 
-    // get selected element
-    if (this.editor_mode === "fixed") {
-      if (
-        e.target.classList[0] === "parent-drawflow" ||
-        e.target.classList[0] === "drawflow"
-      ) {
-        this.ele_selected = e.target.closest(".parent-drawflow");
-      } else {
-        return false;
-      }
-    } else if (this.editor_mode === "view") {
-      if (
-        e.target.closest(".drawflow") != null ||
-        e.target.matches(".parent-drawflow")
-      ) {
-        this.ele_selected = e.target.closest(".parent-drawflow");
-        e.preventDefault();
-      }
-    } else {
-      this.first_click = e.target;
-      this.ele_selected = e.target;
-      if (e.button === 0) {
-        this._contextmenuDel();
-      }
-
-      if (e.target.closest(".drawflow_content_node") != null) {
-        this.ele_selected = e.target.closest(
-          ".drawflow_content_node"
-        ).parentElement;
-      }
-    }
-
-    switch (this.ele_selected.classList[0]) {
-      case "drawflow-node":
-        clearSelection();
-
-        if (this.node_selected != this.ele_selected) {
-          this.dispatch("nodeSelected", getNodeID(this.ele_selected.id));
-        }
-
-        this.node_selected = this.ele_selected;
-        this.node_selected.classList.add("selected");
-
-        // cancel drag if an input element was clicked on
-        if (!this.draggable_inputs) {
-          if (
-            e.target.tagName !== "INPUT" &&
-            e.target.tagName !== "TEXTAREA" &&
-            e.target.tagName !== "SELECT" &&
-            e.target.hasAttribute("contenteditable") !== true
-          ) {
-            this.drag = true;
-          }
+    if (e.button === 1) {
+      this.editor_selected = true;
+    } else if (e.button === 0) {
+      // get selected element
+      if (this.editor_mode === "fixed") {
+        if (
+          e.target.classList[0] === "parent-drawflow" ||
+          e.target.classList[0] === "drawflow"
+        ) {
+          this.ele_selected = e.target.closest(".parent-drawflow");
         } else {
-          if (e.target.tagName !== "SELECT") {
-            this.drag = true;
+          return false;
+        }
+      } else if (this.editor_mode === "view") {
+        if (
+          e.target.closest(".drawflow") != null ||
+          e.target.matches(".parent-drawflow")
+        ) {
+          this.ele_selected = e.target.closest(".parent-drawflow");
+          e.preventDefault();
+        }
+      } else {
+        this.first_click = e.target;
+        this.ele_selected = e.target;
+        if (e.button === 0) {
+          this._contextmenuDel();
+        }
+
+        if (e.target.closest(".drawflow_content_node") != null) {
+          this.ele_selected = e.target.closest(
+            ".drawflow_content_node"
+          ).parentElement;
+        }
+      }
+
+      switch (this.ele_selected.classList[0]) {
+        case "drawflow-node":
+          clearSelection();
+
+          if (this.node_selected != this.ele_selected) {
+            this.dispatch("nodeSelected", getNodeID(this.ele_selected.id));
           }
-        }
-        break;
-      case "output":
-        this.connection = true;
+
+          this.node_selected = this.ele_selected;
+          this.node_selected.classList.add("selected");
+
+          // cancel drag if an input element was clicked on
+          if (!this.draggable_inputs) {
+            if (
+              e.target.tagName !== "INPUT" &&
+              e.target.tagName !== "TEXTAREA" &&
+              e.target.tagName !== "SELECT" &&
+              e.target.hasAttribute("contenteditable") !== true
+            ) {
+              this.drag = true;
+            }
+          } else {
+            if (e.target.tagName !== "SELECT") {
+              this.drag = true;
+            }
+          }
+          break;
+        case "output":
+          this.connection = true;
+          clearSelection();
+          this._createConnection(e.target);
+          break;
+        case "drawflow":
+          clearSelection();
+          this.editor_selected = e.type === "touchstart";
+          break;
+        case "main-path":
+          clearSelection();
+
+          this.connection_selected = this.ele_selected;
+          this.connection_selected.classList.add("selected");
+
+          this.dispatch(
+            "connectionSelected",
+            getConnectionData(this.connection_selected.parentElement.classList)
+          );
+
+          if (this.reroute_fix_curvature) {
+            this.connection_selected.parentElement
+              .querySelectorAll(".main-path")
+              .forEach((item) => {
+                item.classList.add("selected");
+              });
+          }
+          break;
+        case "point":
+          this.drag_point = true;
+          this.ele_selected.classList.add("selected");
+          break;
+        case "drawflow-delete":
+          if (this.node_selected) {
+            this.removeNodeId(this.node_selected.id);
+          }
+
+          if (this.connection_selected) {
+            this.removeSelectedConnection();
+          }
+
+          clearSelection();
+          break;
+        default:
+          break;
+      }
+
+      if (this.ele_selected.classList.has("parent-drawflow")) {
         clearSelection();
-        this._createConnection(e.target);
-        break;
-      case "parent-drawflow":
-      case "drawflow":
-        clearSelection();
-        this.editor_selected = e.type === "touchstart" || e.button === 1;
-        break;
-      case "main-path":
-        clearSelection();
-
-        this.connection_selected = this.ele_selected;
-        this.connection_selected.classList.add("selected");
-
-        this.dispatch(
-          "connectionSelected",
-          getConnectionData(this.connection_selected.parentElement.classList)
-        );
-
-        if (this.reroute_fix_curvature) {
-          this.connection_selected.parentElement
-            .querySelectorAll(".main-path")
-            .forEach((item) => {
-              item.classList.add("selected");
-            });
-        }
-        break;
-      case "point":
-        this.drag_point = true;
-        this.ele_selected.classList.add("selected");
-        break;
-      case "drawflow-delete":
-        if (this.node_selected) {
-          this.removeNodeId(this.node_selected.id);
-        }
-
-        if (this.connection_selected) {
-          this.removeSelectedConnection();
-        }
-
-        clearSelection();
-        break;
-      default:
+        this.editor_selected = e.type === "touchstart";
+      }
     }
 
     if (e.type === "touchstart") {
@@ -1189,7 +1198,7 @@ export default class Drawflow {
 
     const content = document.createElement("div");
     content.classList.add("drawflow_content_node");
-    if (typenode === false && typeof typenode === "string") {
+    if (typenode === false && typeof html === "string") {
       content.innerHTML = html;
     } else if (typenode === false) {
       html(content);
