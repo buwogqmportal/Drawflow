@@ -1,3 +1,5 @@
+import "./drawflow.css";
+
 function getNodeID(str) {
   return str.slice(5);
 }
