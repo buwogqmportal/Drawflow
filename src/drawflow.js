@@ -86,6 +86,7 @@ function callRender(editor, render, type, id, content) {
     },
     nodeUpdated({ id: id1, data }) {
       if (id1 === id) {
+        id = data.id;
         event.dispatch("updated", data);
       }
     },
@@ -1229,6 +1230,7 @@ export default class Drawflow {
 
   getNodeFromId(id) {
     var moduleName = this.getModuleFromNodeId(id);
+    if (!moduleName) return;
     return JSON.parse(
       JSON.stringify(this.drawflow.drawflow[moduleName].data[id])
     );
@@ -1379,6 +1381,8 @@ export default class Drawflow {
       node.classList.add(...dataNode.class.split(" "));
     }
 
+    dataNode.id = dataNode.id.toString();
+
     const inputs = document.createElement("div");
     inputs.classList.add("inputs");
 
@@ -1391,9 +1395,13 @@ export default class Drawflow {
       input.classList.add(input_item);
       inputs.appendChild(input);
       Object.keys(dataNode.inputs[input_item].connections).map(function (
-        output_item,
-        index
+        output_item
       ) {
+        const connectionData =
+          dataNode.inputs[input_item].connections[output_item];
+
+        connectionData.node = connectionData.node.toString();
+
         var connection = document.createElementNS(
           "http://www.w3.org/2000/svg",
           "svg"
@@ -1407,13 +1415,8 @@ export default class Drawflow {
         // path.innerHTML = 'a';
         connection.classList.add("connection");
         connection.classList.add("node_in_node-" + dataNode.id);
-        connection.classList.add(
-          "node_out_node-" +
-            dataNode.inputs[input_item].connections[output_item].node
-        );
-        connection.classList.add(
-          dataNode.inputs[input_item].connections[output_item].input
-        );
+        connection.classList.add("node_out_node-" + connectionData.node);
+        connection.classList.add(connectionData.input);
         connection.classList.add(input_item);
 
         connection.appendChild(path);
@@ -1565,6 +1568,76 @@ export default class Drawflow {
         }
       });
     });
+  }
+
+  changeNodeID(oldId, newId) {
+    const moduleName = this.getModuleFromNodeId(oldId);
+
+    if (!moduleName) return false;
+
+    const moduleData = this.drawflow.drawflow[moduleName].data;
+    const node = moduleData[oldId];
+
+    if (this.getNodeFromId(newId) || oldId === newId) return false;
+
+    delete moduleData[oldId];
+    moduleData[newId] = node;
+
+    node.id = newId;
+    const nodeEl = this.precanvas.querySelector(`#node-${oldId}`);
+    nodeEl.id = `node-${newId}`;
+
+    for (const input_class in node.inputs) {
+      const input = node.inputs[input_class];
+      for (const connectionIn of input.connections) {
+        const input_node = this.getNodeFromId(connectionIn.node);
+        for (const output_class in input_node.outputs) {
+          const output = input_node.outputs[output_class];
+          for (const connection of output.connections) {
+            if (
+              connection.node === oldId &&
+              connection.output === input_class
+            ) {
+              connection.node = newId;
+            }
+          }
+        }
+      }
+    }
+
+    for (const output_class in node.outputs) {
+      const output = node.outputs[output_class];
+      for (const connectionOut of output.connections) {
+        const output_node = this.getNodeFromId(connectionOut.node);
+        for (const input_class in output_node.inputs) {
+          const input = output_node.inputs[input_class];
+          for (const connection of input.connections) {
+            if (
+              connection.node === oldId &&
+              connection.input === output_class
+            ) {
+              connection.node = newId;
+            }
+          }
+        }
+      }
+    }
+
+    const connectionEls = this.precanvas.querySelectorAll(
+      `.node_in_node-${oldId},.node_out_node-${newId}`
+    );
+
+    connectionEls.forEach((el) => {
+      el.classList.replace(`.node_in_node-${oldId}`, `.node_in_node-${newId}`);
+      el.classList.replace(
+        `.node_out_node-${oldId}`,
+        `.node_out_node-${newId}`
+      );
+    });
+
+    this.dispatch("updateNodes", { id: oldId, data: node });
+
+    return true;
   }
 
   updateNodeValue(event) {
