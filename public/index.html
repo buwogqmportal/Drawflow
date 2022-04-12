@@ -13,7 +13,6 @@
       integrity="sha256-KzZiKy0DWYsnwMF+X1DvQngQ2/FxF7MF3Ff72XcpuPs="
       crossorigin="anonymous"
     ></script>
-    <link rel="stylesheet" type="text/css" href="drawflow.css" />
     <link rel="stylesheet" type="text/css" href="beautiful.css" />
     <link
       rel="stylesheet"
@@ -222,18 +221,10 @@
       editor.start();
       editor.import(dataToImport);
 
-      editor.addNode(
-        "render",
-        2,
-        1,
-        500,
-        500,
-        "render",
-        {},
-        (data) => {
-          console.log("render node created", data);
+      editor.render = (data) => {
+        console.log("render node created", data);
 
-          data.content.innerHTML = `
+        data.content.innerHTML = `
           <div>
             <div class="title-box"><i class="fas fa-wrench"></i> Custom Render Node</div>
             <div class="box" style="height: 200px; overflow-y: auto;">
@@ -242,33 +233,33 @@
             </div>
           </div>`;
 
-          const posel = data.content.querySelector(".pos");
-          const logel = data.content.querySelector(".log");
+        const posel = data.content.querySelector(".pos");
+        const logel = data.content.querySelector(".log");
 
-          data.event.on("moved", () => {
-            const rect = data.content.parentElement.getBoundingClientRect();
-            posel.innertext = `x: ${rect.x}, y: ${rect.y}`;
+        data.event.on("moved", () => {
+          const rect = data.content.parentElement.getBoundingClientRect();
+          posel.innertext = `x: ${rect.x}, y: ${rect.y}`;
+        });
+
+        for (const eventName of [
+          "selected",
+          "unselected",
+          "updated",
+          "removed",
+          "connectionStart",
+          "connectionCreated",
+          "connectionRemoved",
+        ]) {
+          data.event.on(eventName, (data) => {
+            logel.insertAdjacentHTML(
+              "afterbegin",
+              `<p>${eventName}: ${JSON.stringify(data)}</p>`
+            );
           });
+        }
+      };
 
-          for (const eventName of [
-            "selected",
-            "unselected",
-            "updated",
-            "removed",
-            "connectionStart",
-            "connectionCreated",
-            "connectionRemoved",
-          ]) {
-            data.event.on(eventName, (data) => {
-              logel.insertAdjacentHTML(
-                "afterbegin",
-                `<p>${eventName}: ${JSON.stringify(data)}</p>`
-              );
-            });
-          }
-        },
-        (typenode = false)
-      );
+      editor.addNode("render", 2, 1, 500, 500, "render", {}, "", "render");
 
       // Events!
       editor.on("nodeCreated", function (id) {
