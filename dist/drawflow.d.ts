@@ -4,19 +4,19 @@ declare type EventListener = {
     dispatch: (event: string, details?: any) => void;
     removeListener: (event: string, callback: Function) => void;
 };
-declare type RenderFunction = (options: {
+export declare type RenderFunction = (options: {
     register: any;
     type: string | number;
     content: HTMLElement;
     editor: Drawflow;
     event: EventListener;
 }) => void;
-declare type DrawflowData = {
+export declare type DrawflowData = {
     drawflow: Record<string, {
         data: Record<string, DrawflowNodeData>;
     }>;
 };
-declare type DrawflowNodeData = {
+export declare type DrawflowNodeData = {
     id: string;
     name: string;
     data: Record<string, any>;
@@ -28,7 +28,7 @@ declare type DrawflowNodeData = {
     pos_x: number;
     pos_y: number;
 };
-declare type DrawflowNodeInput = {
+export declare type DrawflowNodeInput = {
     connections: {
         node: string;
         input: string;
@@ -38,7 +38,7 @@ declare type DrawflowNodeInput = {
         }[];
     }[];
 };
-declare type DrawflowNodeOutput = {
+export declare type DrawflowNodeOutput = {
     connections: {
         node: string;
         output: string;
@@ -48,19 +48,19 @@ declare type DrawflowNodeOutput = {
         }[];
     }[];
 };
-declare type DrawflowPoint = {
+export declare type DrawflowPoint = {
     x: number;
     y: number;
 };
-declare type DrawflowConnectionOut = {
+export declare type DrawflowConnectionOut = {
     output_id: string;
     output_class: string;
 };
-declare type DrawflowConnectionIn = {
+export declare type DrawflowConnectionIn = {
     input_id: string;
     input_class: string;
 };
-declare type DrawflowConnection = DrawflowConnectionIn & DrawflowConnectionOut;
+export declare type DrawflowConnection = DrawflowConnectionIn & DrawflowConnectionOut;
 declare type DrawflowOptions = {
     module?: string;
     editor_mode?: "edit" | "view" | "fixed";
@@ -200,7 +200,9 @@ export default class Drawflow {
     on(event: "mouseUp", callback: (data: MouseEvent | TouchEvent) => void): boolean;
     on(event: "nodeCreated", callback: (data: string) => void): boolean;
     on(event: "nodeDataChanged", callback: (data: string) => void): boolean;
-    on(event: "nodeMoved", callback: (data: string) => void): boolean;
+    on(event: "nodeMoved", callback: (data: {
+        id: string;
+    } & DrawflowPoint) => void): boolean;
     on(event: "nodeRemoved", callback: (data: string) => void): boolean;
     on(event: "nodeSelected", callback: (data: string) => void): boolean;
     on(event: "nodeUnselected", callback: (data: true) => void): boolean;
@@ -236,7 +238,9 @@ export default class Drawflow {
     removeListener(event: "mouseUp", callback: (data: MouseEvent | TouchEvent) => void): boolean;
     removeListener(event: "nodeCreated", callback: (data: string) => void): boolean;
     removeListener(event: "nodeDataChanged", callback: (data: string) => void): boolean;
-    removeListener(event: "nodeMoved", callback: (data: string) => void): boolean;
+    removeListener(event: "nodeMoved", callback: (data: {
+        id: string;
+    } & DrawflowPoint) => void): boolean;
     removeListener(event: "nodeRemoved", callback: (data: string) => void): boolean;
     removeListener(event: "nodeSelected", callback: (data: string) => void): boolean;
     removeListener(event: "nodeUnselected", callback: (data: true) => void): boolean;
@@ -272,7 +276,9 @@ export default class Drawflow {
     dispatch(event: "mouseUp", details: MouseEvent | TouchEvent): boolean;
     dispatch(event: "nodeCreated", details: string): boolean;
     dispatch(event: "nodeDataChanged", details: string): boolean;
-    dispatch(event: "nodeMoved", details: string): boolean;
+    dispatch(event: "nodeMoved", details: {
+        id: string;
+    } & DrawflowPoint): boolean;
     dispatch(event: "nodeRemoved", details: string): boolean;
     dispatch(event: "nodeSelected", details: string): boolean;
     dispatch(event: "nodeUnselected", details: true): boolean;

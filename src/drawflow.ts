@@ -46,7 +46,7 @@ type EventListener = {
   removeListener: (event: string, callback: Function) => void;
 };
 
-type RenderFunction = (options: {
+export type RenderFunction = (options: {
   register: any;
   type: string | number;
   content: HTMLElement;
@@ -101,8 +101,6 @@ function callRender(
     },
 
     dispatch(event, details?) {
-      console.log(event);
-
       // Check if this event not exists
       if (events[event] === undefined) {
         // console.error(`This event: ${event} does not exist`);
@@ -189,11 +187,11 @@ function callRender(
   });
 }
 
-type DrawflowData = {
+export type DrawflowData = {
   drawflow: Record<string, { data: Record<string, DrawflowNodeData> }>;
 };
 
-type DrawflowNodeData = {
+export type DrawflowNodeData = {
   id: string;
   name: string;
   data: Record<string, any>;
@@ -206,7 +204,7 @@ type DrawflowNodeData = {
   pos_y: number;
 };
 
-type DrawflowNodeInput = {
+export type DrawflowNodeInput = {
   connections: {
     node: string;
     input: string;
@@ -214,7 +212,7 @@ type DrawflowNodeInput = {
   }[];
 };
 
-type DrawflowNodeOutput = {
+export type DrawflowNodeOutput = {
   connections: {
     node: string;
     output: string;
@@ -222,20 +220,20 @@ type DrawflowNodeOutput = {
   }[];
 };
 
-type DrawflowPoint = {
+export type DrawflowPoint = {
   x: number;
   y: number;
 };
 
-type DrawflowConnectionOut = {
+export type DrawflowConnectionOut = {
   output_id: string;
   output_class: string;
 };
-type DrawflowConnectionIn = {
+export type DrawflowConnectionIn = {
   input_id: string;
   input_class: string;
 };
-type DrawflowConnection = DrawflowConnectionIn & DrawflowConnectionOut;
+export type DrawflowConnection = DrawflowConnectionIn & DrawflowConnectionOut;
 
 type DrawflowOptions = {
   module?: string;
@@ -286,9 +284,9 @@ export default class Drawflow {
   module = "Home";
   editor_mode: "edit" | "view" | "fixed" = "edit";
   zoom = 1;
-  zoom_max = 1.6;
-  zoom_min = 0.5;
-  zoom_value = 0.1;
+  zoom_max = 2;
+  zoom_min = 1 / 10;
+  zoom_value = 0.2;
   zoom_last_value = 1;
   curvature = 0.5;
   reroute = false;
@@ -330,11 +328,11 @@ export default class Drawflow {
   }
 
   get zoomLevel() {
-    return Math.log(this.zoom);
+    return Math.log2(this.zoom);
   }
 
   set zoomLevel(value) {
-    this.zoom = Math.exp(value);
+    this.zoom = Math.pow(2, value);
     this.refreshZoom();
   }
 
@@ -739,7 +737,11 @@ export default class Drawflow {
 
     if (this.drag) {
       if (this.pos_x_start != e_pos_x || this.pos_y_start != e_pos_y) {
-        this.dispatch("nodeMoved", getNodeID(this.ele_selected.id));
+        this.dispatch("nodeMoved", {
+          id: getNodeID(this.ele_selected.id),
+          x: e_pos_x,
+          y: e_pos_y,
+        });
       }
     }
 
@@ -953,6 +955,7 @@ export default class Drawflow {
 
   zoomIn(value = this.zoom_value) {
     this.zoomLevel += value;
+    console.log(value);
   }
 
   zoomOut(value = this.zoom_value) {
@@ -2300,7 +2303,10 @@ export default class Drawflow {
   ): boolean;
   on(event: "nodeCreated", callback: (data: string) => void): boolean;
   on(event: "nodeDataChanged", callback: (data: string) => void): boolean;
-  on(event: "nodeMoved", callback: (data: string) => void): boolean;
+  on(
+    event: "nodeMoved",
+    callback: (data: { id: string } & DrawflowPoint) => void
+  ): boolean;
   on(event: "nodeRemoved", callback: (data: string) => void): boolean;
   on(event: "nodeSelected", callback: (data: string) => void): boolean;
   on(event: "nodeUnselected", callback: (data: true) => void): boolean;
@@ -2418,7 +2424,10 @@ export default class Drawflow {
     event: "nodeDataChanged",
     callback: (data: string) => void
   ): boolean;
-  removeListener(event: "nodeMoved", callback: (data: string) => void): boolean;
+  removeListener(
+    event: "nodeMoved",
+    callback: (data: { id: string } & DrawflowPoint) => void
+  ): boolean;
   removeListener(
     event: "nodeRemoved",
     callback: (data: string) => void
@@ -2485,7 +2494,10 @@ export default class Drawflow {
   dispatch(event: "mouseUp", details: MouseEvent | TouchEvent): boolean;
   dispatch(event: "nodeCreated", details: string): boolean;
   dispatch(event: "nodeDataChanged", details: string): boolean;
-  dispatch(event: "nodeMoved", details: string): boolean;
+  dispatch(
+    event: "nodeMoved",
+    details: { id: string } & DrawflowPoint
+  ): boolean;
   dispatch(event: "nodeRemoved", details: string): boolean;
   dispatch(event: "nodeSelected", details: string): boolean;
   dispatch(event: "nodeUnselected", details: true): boolean;
