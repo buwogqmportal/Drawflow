@@ -115,9 +115,9 @@ function callRender(
   let selected = false;
 
   const handle = {
-    nodeMoved(id1: string) {
+    nodeMoved({ id: id1, x, y }: { id: string; x: number; y: number }) {
       if (id1 === id) {
-        event.dispatch("moved");
+        event.dispatch("moved", { x, y });
       }
     },
     nodeSelected(id1: string) {
@@ -737,10 +737,12 @@ export default class Drawflow {
 
     if (this.drag) {
       if (this.pos_x_start != e_pos_x || this.pos_y_start != e_pos_y) {
+        const id = getNodeID(this.ele_selected.id);
+        const nodeData = this.getNodeFromId(id);
         this.dispatch("nodeMoved", {
-          id: getNodeID(this.ele_selected.id),
-          x: e_pos_x,
-          y: e_pos_y,
+          id: id,
+          x: nodeData.pos_x,
+          y: nodeData.pos_y,
         });
       }
     }
