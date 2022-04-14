@@ -51,6 +51,7 @@ export type RenderFunction = (options: {
   type: string | number;
   content: HTMLElement;
   editor: Drawflow;
+  id: string;
   event: EventListener;
 }) => void;
 
@@ -180,6 +181,7 @@ function callRender(
 
   render({
     register: editor.noderegister[type],
+    id,
     type,
     content,
     editor,

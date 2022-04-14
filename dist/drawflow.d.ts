@@ -9,6 +9,7 @@ export declare type RenderFunction = (options: {
     type: string | number;
     content: HTMLElement;
     editor: Drawflow;
+    id: string;
     event: EventListener;
 }) => void;
 export declare type DrawflowData = {
