@@ -651,16 +651,16 @@ export default class Drawflow {
       const moduleData = this.drawflow.drawflow[this.module].data;
       const selectedID = getNodeID(this.ele_selected.id);
 
-      const x = (this.pos_x - e_pos_x) / this.zoom;
-      const y = (this.pos_y - e_pos_y) / this.zoom;
+      const dx = (this.pos_x - e_pos_x) / this.zoom;
+      const dy = (this.pos_y - e_pos_y) / this.zoom;
       this.pos_x = e_pos_x;
       this.pos_y = e_pos_y;
 
-      this.ele_selected.style.top = this.ele_selected.offsetTop - y + "px";
-      this.ele_selected.style.left = this.ele_selected.offsetLeft - x + "px";
+      moduleData[selectedID].pos_x -= dx;
+      moduleData[selectedID].pos_y -= dy;
 
-      moduleData[selectedID].pos_x = this.ele_selected.offsetLeft - x;
-      moduleData[selectedID].pos_y = this.ele_selected.offsetTop - y;
+      this.ele_selected.style.left = moduleData[selectedID].pos_x + "px";
+      this.ele_selected.style.top = moduleData[selectedID].pos_y + "px";
 
       this.updateNodeConnections(this.ele_selected.id);
     }
