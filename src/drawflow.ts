@@ -2518,9 +2518,11 @@ export default class Drawflow {
       // console.error(`This event: ${event} does not exist`);
       return false;
     }
-    this.events[event].listeners.forEach((listener: (arg0: any) => void) => {
+
+    for (const listener of this.events[event].listeners.slice()) {
       listener(details);
-    });
+    }
+
     return true;
   }
 
