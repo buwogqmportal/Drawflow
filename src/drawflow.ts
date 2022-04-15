@@ -15,24 +15,30 @@ function getConnectionData(classList: DOMTokenList): DrawflowConnection {
 
 function insertObjectkeys(
   content: HTMLElement,
-  obj: Record<string, any>,
+  obj: unknown,
   keys: string[] = []
 ) {
-  if (obj === null) return;
+  if (obj === null || typeof obj !== "object") return;
 
   for (const key in obj) {
     if (Object.hasOwnProperty.call(obj, key)) {
-      const value = obj[key];
+      const value = (obj as Record<string, unknown>)[key];
       if (typeof value === "object" && value !== null) {
-        insertObjectkeys(value, [key]);
+        insertObjectkeys(content, value as Record<string, unknown>, [key]);
       } else {
         const completeKey = keys.concat(key).join("-");
-        var elems = content.querySelectorAll("[df-" + completeKey + "]");
-        // @ts-ignore
-        for (const elem of elems) {
-          elem.value = value;
+        const elems = content.querySelectorAll("[df-" + completeKey + "]");
+        for (let i = 0; i < elems.length; i++) {
+          const elem = elems[i] as HTMLElement;
+          if (
+            elem instanceof HTMLInputElement ||
+            elem instanceof HTMLTextAreaElement ||
+            elem instanceof HTMLSelectElement
+          ) {
+            elem.value = value.toString();
+          }
           if (elem.isContentEditable) {
-            elem.innerText = value;
+            elem.innerText = value.toString();
           }
         }
       }
@@ -40,14 +46,26 @@ function insertObjectkeys(
   }
 }
 
+type EventCallback<Data = unknown> = (data: Data) => void;
+
+type RegisterEventFunction<Event extends string = string, Data = unknown> = (
+  event: Event,
+  callback: EventCallback<Data>
+) => boolean;
+
+type DispatchEventFunction<Event extends string = string, Data = unknown> = (
+  event: Event,
+  details: Data
+) => void;
+
 type EventListener = {
-  on: (event: string, callback: Function) => void;
-  dispatch: (event: string, details?: any) => void;
-  removeListener: (event: string, callback: Function) => void;
+  on: RegisterEventFunction;
+  dispatch: DispatchEventFunction;
+  removeListener: RegisterEventFunction;
 };
 
 export type RenderFunction = (options: {
-  register: any;
+  register: unknown;
   type: string | number;
   content: HTMLElement;
   editor: Drawflow;
@@ -62,7 +80,7 @@ function callRender(
   id: string,
   content: HTMLElement
 ) {
-  const events: Record<string, { listeners: Function[] }> = {};
+  const events: Record<string, { listeners: EventCallback[] }> = {};
 
   const event: EventListener = {
     on(event, callback) {
@@ -107,7 +125,7 @@ function callRender(
         // console.error(`This event: ${event} does not exist`);
         return false;
       }
-      events[event].listeners.forEach((listener: (arg0: any) => void) => {
+      events[event].listeners.forEach((listener: EventCallback) => {
         listener(details);
       });
     },
@@ -123,16 +141,16 @@ function callRender(
     },
     nodeSelected(id1: string) {
       if (id1 === id) {
-        event.dispatch("selected");
+        event.dispatch("selected", null);
         selected = true;
       }
     },
     nodeUnselected() {
       if (selected) {
-        event.dispatch("unselected");
+        event.dispatch("unselected", null);
       }
     },
-    nodeUpdated({ id: id1, data }: { id: string; data: any }) {
+    nodeUpdated({ id: id1, data }: { id: string; data: unknown }) {
       if (id1 === id) {
         event.dispatch("updated", data);
       }
@@ -146,26 +164,26 @@ function callRender(
     nodeRemoved(id1: string) {
       if (id1 === id) {
         for (const eventName in handle) {
-          // @ts-ignore
-          const callback: Function = handle[eventName];
-          // @ts-ignore
+          const callback: EventCallback = (
+            handle as Record<string, EventCallback>
+          )[eventName];
           editor.removeListener(eventName, callback);
         }
 
-        event.dispatch("removed");
+        event.dispatch("removed", null);
       }
     },
-    connectionStart(connection: { output_id: any }) {
+    connectionStart(connection: { output_id: string }) {
       if (connection.output_id === id) {
         event.dispatch("connectionStart", connection);
       }
     },
-    connectionCreated(connection: { output_id: any; input_id: any }) {
+    connectionCreated(connection: { output_id: string; input_id: string }) {
       if (connection.output_id === id || connection.input_id === id) {
         event.dispatch("connectionCreated", connection);
       }
     },
-    connectionRemoved(connection: { output_id: any; input_id: any }) {
+    connectionRemoved(connection: { output_id: string; input_id: string }) {
       if (connection.output_id === id || connection.input_id === id) {
         event.dispatch("connectionRemoved", connection);
       }
@@ -173,9 +191,9 @@ function callRender(
   };
 
   for (const eventName in handle) {
-    // @ts-ignore
-    const callback = handle[eventName];
-    // @ts-ignore
+    const callback: EventCallback = (handle as Record<string, EventCallback>)[
+      eventName
+    ];
     editor.on(eventName, callback);
   }
 
@@ -196,7 +214,7 @@ export type DrawflowData = {
 export type DrawflowNodeData = {
   id: string;
   name: string;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
   class: string;
   html: string;
   typenode: boolean | string | RenderFunction;
@@ -258,7 +276,7 @@ type DrawflowOptions = {
 };
 
 export default class Drawflow {
-  events: Record<string, { listeners: Function[] }> = {};
+  events: Record<string, { listeners: EventCallback[] }> = {};
   precanvas: HTMLElement = null;
   nodeId = 1;
   ele_selected: HTMLElement = null;
@@ -279,7 +297,7 @@ export default class Drawflow {
   mouse_y = 0;
   first_click: Element = null;
 
-  noderegister: Record<string, any> = {};
+  noderegister: Record<string, unknown> = {};
   drawflow: DrawflowData = { drawflow: { Home: { data: {} } } };
 
   // Configurable options
@@ -386,7 +404,7 @@ export default class Drawflow {
   }
 
   _handlePointermove(ev: PointerEvent) {
-    for (var i = 0; i < this.evCache.length; i++) {
+    for (let i = 0; i < this.evCache.length; i++) {
       if (ev.pointerId == this.evCache[i].pointerId) {
         this.evCache[i] = ev;
         break;
@@ -395,7 +413,9 @@ export default class Drawflow {
 
     if (this.evCache.length == 2) {
       // Calculate the distance between the two pointers
-      var curDiff = Math.abs(this.evCache[0].clientX - this.evCache[1].clientX);
+      const curDiff = Math.abs(
+        this.evCache[0].clientX - this.evCache[1].clientX
+      );
 
       if (this.prevDiff > 100) {
         if (curDiff > this.prevDiff) {
@@ -421,7 +441,7 @@ export default class Drawflow {
 
   _removeEvent(ev: PointerEvent) {
     // Remove this event from the target's cache
-    for (var i = this.evCache.length - 1; i >= 0; i--) {
+    for (let i = this.evCache.length - 1; i >= 0; i--) {
       if (this.evCache[i].pointerId == ev.pointerId) {
         this.evCache.splice(i, 1);
         break;
@@ -477,20 +497,20 @@ export default class Drawflow {
   }
 
   _click(e: MouseEvent | TouchEvent) {
-    const editor = this;
-    function clearSelection() {
-      if (editor.node_selected != null) {
-        editor.node_selected.classList.remove("selected");
-        if (editor.node_selected != editor.ele_selected) {
-          editor.dispatch("nodeUnselected", true);
+    const clearSelection = () => {
+      if (this.node_selected != null) {
+        this.node_selected.classList.remove("selected");
+        if (this.node_selected != this.ele_selected) {
+          this.node_selected = null;
+          this.dispatch("nodeUnselected", true);
         }
       }
-      if (editor.connection_selected != null) {
-        editor.connection_selected.classList.remove("selected");
-        editor.unselectConnectionReroutes();
-        editor.connection_selected = null;
+      if (this.connection_selected != null) {
+        this.connection_selected.classList.remove("selected");
+        this.unselectConnectionReroutes();
+        this.connection_selected = null;
       }
-    }
+    };
 
     this.dispatch("click", e);
 
@@ -629,12 +649,13 @@ export default class Drawflow {
   }
 
   _position(e: MouseEvent | TouchEvent) {
+    let e_pos_x: number, e_pos_y: number;
     if (e instanceof TouchEvent) {
-      var e_pos_x = e.touches[0].clientX;
-      var e_pos_y = e.touches[0].clientY;
+      e_pos_x = e.touches[0].clientX;
+      e_pos_y = e.touches[0].clientY;
     } else {
-      var e_pos_x = e.clientX;
-      var e_pos_y = e.clientY;
+      e_pos_x = e.clientX;
+      e_pos_y = e.clientY;
     }
 
     if (this.connection) {
@@ -702,8 +723,7 @@ export default class Drawflow {
       const searchConnection = moduleData[output_id].outputs[
         output_class
       ].connections.findIndex(
-        (item: { node: any; output: any }) =>
-          item.node === input_id && item.output === input_class
+        (item) => item.node === input_id && item.output === input_class
       );
 
       moduleData[output_id].outputs[output_class].connections[
@@ -771,32 +791,34 @@ export default class Drawflow {
           (ele_last.closest(".drawflow_content_node") != null ||
             ele_last.classList[0] === "drawflow-node"))
       ) {
+        let input_id: string, input_class: string;
         if (
           this.force_first_input &&
           (ele_last.closest(".drawflow_content_node") != null ||
             ele_last.classList[0] === "drawflow-node")
         ) {
           if (ele_last.closest(".drawflow_content_node") != null) {
-            var input_id = ele_last.closest(".drawflow_content_node")
-              .parentElement.id;
+            input_id = ele_last.closest(".drawflow_content_node").parentElement
+              .id;
           } else {
-            var input_id = ele_last.id;
+            input_id = ele_last.id;
           }
+
           if (
             Object.keys(this.getNodeFromId(getNodeID(input_id)).inputs)
               .length === 0
           ) {
-            var input_class = "";
+            input_class = "";
           } else {
-            var input_class = "input_1";
+            input_class = "input_1";
           }
         } else {
           // Fix connection;
-          var input_id = ele_last.parentElement.parentElement.id;
-          var input_class = ele_last.classList[1];
+          input_id = ele_last.parentElement.parentElement.id;
+          input_class = ele_last.classList[1];
         }
-        var output_id = this.ele_selected.parentElement.parentElement.id;
-        var output_class = this.ele_selected.classList[1];
+        const output_id = this.ele_selected.parentElement.parentElement.id;
+        const output_class = this.ele_selected.classList[1];
 
         if (output_id !== input_id && input_class) {
           if (
@@ -817,8 +839,8 @@ export default class Drawflow {
             this.connection_ele.classList.add("node_out_" + output_id);
             this.connection_ele.classList.add(output_class);
             this.connection_ele.classList.add(input_class);
-            var id_input = getNodeID(input_id);
-            var id_output = getNodeID(output_id);
+            const id_input = getNodeID(input_id);
+            const id_output = getNodeID(output_id);
 
             this.drawflow.drawflow[this.module].data[id_output].outputs[
               output_class
@@ -873,7 +895,7 @@ export default class Drawflow {
       this.precanvas.getElementsByClassName("drawflow-delete")[0].remove();
     }
     if (this.node_selected || this.connection_selected) {
-      var deletebox = document.createElement("div");
+      const deletebox = document.createElement("div");
       deletebox.classList.add("drawflow-delete");
       deletebox.innerHTML = "x";
       if (this.node_selected) {
@@ -959,7 +981,6 @@ export default class Drawflow {
 
   zoomIn(value = this.zoom_value) {
     this.zoomLevel += value;
-    console.log(value);
   }
 
   zoomOut(value = this.zoom_value) {
@@ -986,31 +1007,22 @@ export default class Drawflow {
     const y = end_pos_y;
 
     const handleSize = Math.abs(x - line_x) * curvature;
-    const handleStartDir = true ? 1 : -1;
-    const handleEndDir = true ? 1 : -1;
 
     return (
       "M" +
       [line_x, line_y].join() +
       "C" +
-      [
-        line_x + handleSize * handleStartDir,
-        line_y,
-        x - handleSize * handleEndDir,
-        y,
-        x,
-        y,
-      ].join()
+      [line_x + handleSize, line_y, x - handleSize, y, x, y].join()
     );
   }
 
   _createConnection(ele: HTMLElement) {
-    var connection = document.createElementNS(
+    const connection = document.createElementNS(
       "http://www.w3.org/2000/svg",
       "svg"
     );
     this.connection_ele = connection;
-    var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     path.classList.add("main-path");
     path.setAttributeNS(null, "d", "");
     // path.innerHTML = 'a';
@@ -1018,8 +1030,8 @@ export default class Drawflow {
     connection.appendChild(path);
     this.precanvas.appendChild(connection);
 
-    var id_output = getNodeID(ele.parentElement.parentElement.id);
-    var output_class = ele.classList[1];
+    const id_output = getNodeID(ele.parentElement.parentElement.id);
+    const output_class = ele.classList[1];
 
     this.dispatch("connectionStart", {
       output_id: id_output,
@@ -1032,11 +1044,9 @@ export default class Drawflow {
     const zoom = this.zoom;
 
     const precanvasRect = precanvas.getBoundingClientRect();
-    var path = this.connection_ele.children[0];
+    const path = this.connection_ele.children[0];
 
-    function getCenter(node: {
-      getBoundingClientRect: () => any;
-    }): [number, number] {
+    function getCenter(node: HTMLElement): [number, number] {
       const rect = node.getBoundingClientRect();
       return [
         (rect.x - precanvasRect.x + rect.width / 2) / zoom,
@@ -1046,11 +1056,11 @@ export default class Drawflow {
 
     const [fromX, fromY] = getCenter(this.ele_selected);
 
-    var toX = (eX - this.precanvas.getBoundingClientRect().x) / zoom;
-    var toY = (eY - this.precanvas.getBoundingClientRect().y) / zoom;
+    const toX = (eX - this.precanvas.getBoundingClientRect().x) / zoom;
+    const toY = (eY - this.precanvas.getBoundingClientRect().y) / zoom;
 
-    var curvature = this.curvature;
-    var lineCurve = this.createCurvature(fromX, fromY, toX, toY, curvature);
+    const curvature = this.curvature;
+    const lineCurve = this.createCurvature(fromX, fromY, toX, toY, curvature);
     path.setAttributeNS(null, "d", lineCurve);
   }
 
@@ -1091,11 +1101,11 @@ export default class Drawflow {
 
       if (this.module === nodeOneModule) {
         //Draw connection
-        var connection = document.createElementNS(
+        const connection = document.createElementNS(
           "http://www.w3.org/2000/svg",
           "svg"
         );
-        var path = document.createElementNS(
+        const path = document.createElementNS(
           "http://www.w3.org/2000/svg",
           "path"
         );
@@ -1153,9 +1163,7 @@ export default class Drawflow {
 
     const precanvasRect = precanvas.getBoundingClientRect();
 
-    function getCenter(node: {
-      getBoundingClientRect: () => any;
-    }): [number, number] {
+    function getCenter(node: HTMLElement): [number, number] {
       const rect = node.getBoundingClientRect();
       return [
         (rect.x - precanvasRect.x + rect.width / 2) / zoom,
@@ -1163,9 +1171,7 @@ export default class Drawflow {
       ];
     }
 
-    function getRerouteCenter(node: {
-      getBoundingClientRect: () => any;
-    }): [number, number] {
+    function getRerouteCenter(node: HTMLElement): [number, number] {
       const rect = node.getBoundingClientRect();
       return [
         (rect.x - precanvasRect.x) / zoom + rerouteWidth,
@@ -1175,15 +1181,19 @@ export default class Drawflow {
 
     const outputElem = nodeFromElem.querySelector(
       "." + connection.classList[3]
-    );
+    ) as HTMLElement;
 
     const [fromX, fromY] = getCenter(outputElem);
 
-    const inputElem = nodeToElem.querySelector("." + connection.classList[4]);
+    const inputElem = nodeToElem.querySelector(
+      "." + connection.classList[4]
+    ) as HTMLElement;
 
     const [toX, toY] = getCenter(inputElem);
 
-    const points = connection.querySelectorAll(".point");
+    const points = connection.querySelectorAll(
+      ".point"
+    ) as NodeListOf<HTMLElement>;
 
     if (points.length === 0) {
       const lineCurve = createCurvature(fromX, fromY, toX, toY, curvature);
@@ -1247,15 +1257,15 @@ export default class Drawflow {
 
     const connectionsOut = container.querySelectorAll(`.${connectionOutTag}`);
 
-    // @ts-ignore
-    for (const connection of connectionsOut) {
+    for (let i = 0; i < connectionsOut.length; i++) {
+      const connection = connectionsOut[i] as HTMLElement;
       this.updateConnection(connection, nodeElem, null);
     }
 
     const connectionsIn = container.querySelectorAll(`.${connectionInTag}`);
 
-    // @ts-ignore
-    for (const connection of connectionsIn) {
+    for (let i = 0; i < connectionsIn.length; i++) {
+      const connection = connectionsIn[i] as HTMLElement;
       this.updateConnection(connection, null, nodeElem);
     }
   }
@@ -1294,7 +1304,10 @@ export default class Drawflow {
     if (this.reroute_fix_curvature) {
       const numberPoints =
         ele.parentElement.querySelectorAll(".main-path").length;
-      var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      const path = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "path"
+      );
       path.classList.add("main-path");
       path.setAttributeNS(null, "d", "");
 
@@ -1332,7 +1345,6 @@ export default class Drawflow {
     }
 
     if (this.reroute_fix_curvature) {
-      //console.log(position_add_array_point)
       if (position_add_array_point > 0) {
         connection.points.splice(position_add_array_point, 0, {
           pos_x: pos_x,
@@ -1347,9 +1359,7 @@ export default class Drawflow {
 
       ele.parentElement
         .querySelectorAll(".main-path.selected")
-        .forEach((item: { classList: { remove: (arg0: string) => any } }) =>
-          item.classList.remove("selected")
-        );
+        .forEach((item) => item.classList.remove("selected"));
     } else {
       connection.points.push({
         pos_x: pos_x,
@@ -1371,8 +1381,7 @@ export default class Drawflow {
     const searchConnection = this.drawflow.drawflow[this.module].data[
       output_id
     ].outputs[output_class].connections.findIndex(
-      (item: { node: any; output: any }) =>
-        item.node === input_id && item.output === input_class
+      (item) => item.node === input_id && item.output === input_class
     );
 
     if (this.reroute_fix_curvature) {
@@ -1393,12 +1402,12 @@ export default class Drawflow {
     this.updateNodeConnections(`node-${output_id}`);
   }
 
-  registerNode(name: string | number, html: any) {
+  registerNode(name: string | number, html: unknown) {
     this.noderegister[name] = html;
   }
 
   getNodeFromId(id: string): DrawflowNodeData {
-    var moduleName = this.getModuleFromNodeId(id);
+    const moduleName = this.getModuleFromNodeId(id);
     if (!moduleName) return;
     return JSON.parse(
       JSON.stringify(this.drawflow.drawflow[moduleName].data[id])
@@ -1406,10 +1415,10 @@ export default class Drawflow {
   }
 
   getNodesFromName(name: string): string[] {
-    var nodes: string[] = [];
+    const nodes: string[] = [];
     const editor = this.drawflow.drawflow;
-    Object.keys(editor).map(function (moduleName, index) {
-      for (var node in editor[moduleName].data) {
+    Object.keys(editor).map((moduleName) => {
+      for (const node in editor[moduleName].data) {
         if (editor[moduleName].data[node].name == name) {
           nodes.push(editor[moduleName].data[node].id);
         }
@@ -1425,7 +1434,7 @@ export default class Drawflow {
     ele_pos_x: number,
     ele_pos_y: number,
     classoverride: string,
-    data: any,
+    data: unknown,
     html: string,
     typenode = false
   ): string {
@@ -1454,7 +1463,7 @@ export default class Drawflow {
     outputs.classList.add("outputs");
 
     const json_inputs: Record<string, DrawflowNodeInput> = {};
-    for (var x = 0; x < num_in; x++) {
+    for (let x = 0; x < num_in; x++) {
       const input = document.createElement("div");
       input.classList.add("input");
       input.classList.add("input_" + (x + 1));
@@ -1463,7 +1472,7 @@ export default class Drawflow {
     }
 
     const json_outputs: Record<string, DrawflowNodeOutput> = {};
-    for (var x = 0; x < num_out; x++) {
+    for (let x = 0; x < num_out; x++) {
       const output = document.createElement("div");
       output.classList.add("output");
       output.classList.add("output_" + (x + 1));
@@ -1477,7 +1486,9 @@ export default class Drawflow {
     if (typenode === false) {
       content.innerHTML = html;
     } else if (typenode === true) {
-      content.appendChild(this.noderegister[html].cloneNode(true));
+      content.appendChild(
+        (this.noderegister[html] as Element)?.cloneNode(true)
+      );
     } else if (typeof typenode === "function") {
       callRender(this, typenode, html, newNodeId, content);
     } else {
@@ -1500,7 +1511,10 @@ export default class Drawflow {
     const json: DrawflowNodeData = {
       id: newNodeId,
       name: name,
-      data: data,
+      data:
+        data !== null && typeof data === "object"
+          ? (data as Record<string, unknown>)
+          : {},
       class: classoverride,
       html: html,
       typenode: typenode,
@@ -1578,7 +1592,7 @@ export default class Drawflow {
       }
     }
 
-    for (var x = 0; x < Object.keys(dataNode.outputs).length; x++) {
+    for (let x = 0; x < Object.keys(dataNode.outputs).length; x++) {
       const output = document.createElement("div");
       output.classList.add("output");
       output.classList.add("output_" + (x + 1));
@@ -1591,7 +1605,9 @@ export default class Drawflow {
     if (dataNode.typenode === false) {
       content.innerHTML = dataNode.html;
     } else if (dataNode.typenode === true) {
-      content.appendChild(this.noderegister[dataNode.html].cloneNode(true));
+      content.appendChild(
+        (this.noderegister[dataNode.html] as HTMLElement).cloneNode(true)
+      );
     } else if (typeof dataNode.typenode === "function") {
       callRender(this, dataNode.typenode, dataNode.html, dataNode.id, content);
     } else {
@@ -1648,8 +1664,8 @@ export default class Drawflow {
               );
 
               if (reroute_fix_curvature) {
-                for (var z = 0; z < points.length; z++) {
-                  var path = document.createElementNS(
+                for (let z = 0; z < points.length; z++) {
+                  const path = document.createElementNS(
                     "http://www.w3.org/2000/svg",
                     "path"
                   );
@@ -1751,22 +1767,22 @@ export default class Drawflow {
 
   updateNodeValue(event: Event) {
     const etarget = event.target as HTMLElement;
-    var attr = etarget.attributes;
+    const attr = etarget.attributes;
 
-    for (var i = 0; i < attr.length; i++) {
+    for (let i = 0; i < attr.length; i++) {
       if (attr[i].nodeName.startsWith("df-")) {
-        var keys = attr[i].nodeName.slice(3).split("-");
-        var target =
+        const keys = attr[i].nodeName.slice(3).split("-");
+        let target =
           this.drawflow.drawflow[this.module].data[
             getNodeID(
               etarget.closest(".drawflow_content_node").parentElement.id
             )
           ].data;
-        for (var index = 0; index < keys.length - 1; index += 1) {
+        for (let index = 0; index < keys.length - 1; index += 1) {
           if (target[keys[index]] == null) {
             target[keys[index]] = {};
           }
-          target = target[keys[index]];
+          target = target[keys[index]] as Record<string, unknown>;
         }
         target[keys[keys.length - 1]] = (etarget as HTMLInputElement).value;
         if (etarget.isContentEditable) {
@@ -1780,8 +1796,8 @@ export default class Drawflow {
     }
   }
 
-  updateNodeDataFromId(id: string, data: any) {
-    var moduleName = this.getModuleFromNodeId(id);
+  updateNodeDataFromId(id: string, data: Record<string, unknown>) {
+    const moduleName = this.getModuleFromNodeId(id);
     this.drawflow.drawflow[moduleName].data[id].data = data;
     if (this.module === moduleName) {
       const content = this.container.querySelector(
@@ -1793,7 +1809,7 @@ export default class Drawflow {
   }
 
   addNodeInput(id: string) {
-    var moduleName = this.getModuleFromNodeId(id);
+    const moduleName = this.getModuleFromNodeId(id);
     const infoNode = this.getNodeFromId(id);
     const numInputs = Object.keys(infoNode.inputs).length;
     if (this.module === moduleName) {
@@ -1811,7 +1827,7 @@ export default class Drawflow {
   }
 
   addNodeOutput(id: string) {
-    var moduleName = this.getModuleFromNodeId(id);
+    const moduleName = this.getModuleFromNodeId(id);
     const infoNode = this.getNodeFromId(id);
     const numOutputs = Object.keys(infoNode.outputs).length;
     if (this.module === moduleName) {
@@ -1990,7 +2006,7 @@ export default class Drawflow {
 
   removeNodeId(id: string) {
     this.removeNodeConnectionsByNodeId(id);
-    var moduleName = this.getModuleFromNodeId(getNodeID(id));
+    const moduleName = this.getModuleFromNodeId(getNodeID(id));
     if (this.module === moduleName) {
       this.container.querySelector(`#${id}`).remove();
     }
@@ -2009,22 +2025,20 @@ export default class Drawflow {
 
       const moduleData = this.drawflow.drawflow[this.module].data;
 
-      var index_out = moduleData[output_id].outputs[
+      const index_out = moduleData[output_id].outputs[
         output_class
       ].connections.findIndex(
-        (item: { node: any; output: any }) =>
-          item.node === input_id && item.output === input_class
+        (item) => item.node === input_id && item.output === input_class
       );
       moduleData[output_id].outputs[output_class].connections.splice(
         index_out,
         1
       );
 
-      var index_in = moduleData[input_id].inputs[
+      const index_in = moduleData[input_id].inputs[
         input_class
       ].connections.findIndex(
-        (item: { node: any; input: any }) =>
-          item.node === output_id && item.input === output_class
+        (item) => item.node === output_id && item.input === output_class
       );
       moduleData[input_id].inputs[input_class].connections.splice(index_in, 1);
 
@@ -2044,13 +2058,13 @@ export default class Drawflow {
     output_class: string,
     input_class: string
   ): boolean {
-    var nodeOneModule = this.getModuleFromNodeId(id_output);
-    var nodeTwoModule = this.getModuleFromNodeId(id_input);
+    const nodeOneModule = this.getModuleFromNodeId(id_output);
+    const nodeTwoModule = this.getModuleFromNodeId(id_input);
     if (nodeOneModule === nodeTwoModule) {
       // Check nodes in same module.
 
       // Check connection exist
-      var exists = this.drawflow.drawflow[nodeOneModule].data[
+      const exists = this.drawflow.drawflow[nodeOneModule].data[
         id_output
       ].outputs[output_class].connections.findIndex(
         (item: { node: string; output: string }) =>
@@ -2073,7 +2087,7 @@ export default class Drawflow {
             .remove();
         }
 
-        var index_out = this.drawflow.drawflow[nodeOneModule].data[
+        const index_out = this.drawflow.drawflow[nodeOneModule].data[
           id_output
         ].outputs[output_class].connections.findIndex(
           (item: { node: string; output: string }) =>
@@ -2083,7 +2097,7 @@ export default class Drawflow {
           output_class
         ].connections.splice(index_out, 1);
 
-        var index_in = this.drawflow.drawflow[nodeOneModule].data[
+        const index_in = this.drawflow.drawflow[nodeOneModule].data[
           id_input
         ].inputs[input_class].connections.findIndex(
           (item: { node: string; input: string }) =>
@@ -2118,23 +2132,21 @@ export default class Drawflow {
       `.${connectionOutTag}`
     );
 
-    for (var i = connectionsOut.length - 1; i >= 0; i--) {
+    for (let i = connectionsOut.length - 1; i >= 0; i--) {
       const { output_id, input_id, output_class, input_class } =
         getConnectionData(connectionsOut[i].classList);
 
       const index_in = moduleData[input_id].inputs[
         input_class
       ].connections.findIndex(
-        (item: { node: any; input: any }) =>
-          item.node === output_id && item.input === output_class
+        (item) => item.node === output_id && item.input === output_class
       );
       moduleData[input_id].inputs[input_class].connections.splice(index_in, 1);
 
       const index_out = moduleData[output_id].outputs[
         output_class
       ].connections.findIndex(
-        (item: { node: any; output: any }) =>
-          item.node === input_id && item.output === input_class
+        (item) => item.node === input_id && item.output === input_class
       );
       moduleData[output_id].outputs[output_class].connections.splice(
         index_out,
@@ -2155,26 +2167,24 @@ export default class Drawflow {
       `.${connectionInTag}`
     );
 
-    for (var i = connectionsIn.length - 1; i >= 0; i--) {
+    for (let i = connectionsIn.length - 1; i >= 0; i--) {
       const { output_id, input_id, output_class, input_class } =
         getConnectionData(connectionsIn[i].classList);
 
-      var index_out = moduleData[output_id].outputs[
+      const index_out = moduleData[output_id].outputs[
         output_class
       ].connections.findIndex(
-        (item: { node: any; output: any }) =>
-          item.node === input_id && item.output === input_class
+        (item) => item.node === input_id && item.output === input_class
       );
       moduleData[output_id].outputs[output_class].connections.splice(
         index_out,
         1
       );
 
-      var index_in = moduleData[input_id].inputs[
+      const index_in = moduleData[input_id].inputs[
         input_class
       ].connections.findIndex(
-        (item: { node: any; input: any }) =>
-          item.node === output_id && item.input === output_class
+        (item) => item.node === output_id && item.input === output_class
       );
       moduleData[input_id].inputs[input_class].connections.splice(index_in, 1);
 
@@ -2319,14 +2329,15 @@ export default class Drawflow {
   on(event: "translate", callback: (data: DrawflowPoint) => void): boolean;
   on(
     event: "updateNodes",
-    callback: (data: { id: string; data: any }) => void
+    callback: (data: { id: string; data: unknown }) => void
   ): boolean;
   on(
     event: "updateNodeId",
     callback: (data: { newId: string; oldId: string }) => void
   ): boolean;
   on(event: "zoom", callback: (data: number) => void): boolean;
-  on(event: string, callback: Function): boolean {
+  on(event: string, callback: (data: unknown) => void): boolean;
+  on(event: string, callback: unknown): boolean {
     // Check if the callback is not a function
     if (typeof callback !== "function") {
       console.error(
@@ -2347,7 +2358,7 @@ export default class Drawflow {
         listeners: [],
       };
     }
-    this.events[event].listeners.push(callback);
+    this.events[event].listeners.push(callback as EventCallback);
     return true;
   }
 
@@ -2458,20 +2469,23 @@ export default class Drawflow {
   ): boolean;
   removeListener(
     event: "updateNodes",
-    callback: (data: { id: string; data: any }) => void
+    callback: (data: { id: string; data: unknown }) => void
   ): boolean;
   removeListener(
     event: "updateNodeId",
     callback: (data: { newId: string; oldId: string }) => void
   ): boolean;
   removeListener(event: "zoom", callback: (data: number) => void): boolean;
-  removeListener(event: string, callback: any) {
+  removeListener(event: string, callback: (data: unknown) => void): boolean;
+  removeListener(event: string, callback: unknown): boolean {
     // Check if this event not exists
 
     if (!this.events[event]) return false;
 
     const listeners = this.events[event].listeners;
-    const listenerIndex = listeners.indexOf(callback);
+    const listenerIndex = listeners.indexOf(
+      callback as (data: unknown) => void
+    );
     const hasListener = listenerIndex > -1;
     if (hasListener) listeners.splice(listenerIndex, 1);
 
@@ -2508,13 +2522,17 @@ export default class Drawflow {
   dispatch(event: "removeReroute", details: string): boolean;
   dispatch(event: "rerouteMoved", details: string): boolean;
   dispatch(event: "translate", details: DrawflowPoint): boolean;
-  dispatch(event: "updateNodes", details: { id: string; data: any }): boolean;
+  dispatch(
+    event: "updateNodes",
+    details: { id: string; data: unknown }
+  ): boolean;
   dispatch(
     event: "updateNodeId",
     details: { oldId: string; newId: string }
   ): boolean;
   dispatch(event: "zoom", details: number): boolean;
-  dispatch(event: string, details: any): boolean {
+  dispatch(event: string, details: unknown): boolean;
+  dispatch(event: string, details: unknown): boolean {
     // Check if this event not exists
     if (this.events[event] === undefined) {
       // console.error(`This event: ${event} does not exist`);
@@ -2531,16 +2549,15 @@ export default class Drawflow {
   getUuid(): string {
     // http://www.ietf.org/rfc/rfc4122.txt
 
-    var s: string[] = [];
-    var hexDigits = "0123456789abcdef";
-    for (var i = 0; i < 36; i++) {
+    const s: string[] = [];
+    const hexDigits = "0123456789abcdef";
+    for (let i = 0; i < 36; i++) {
       s[i] = hexDigits.charAt(Math.floor(Math.random() * 0x10));
     }
     s[14] = "4"; // bits 12-15 of the time_hi_and_version field to 0010
     s[19] = hexDigits.charAt((parseInt(s[19], 16) & 0x3) | 0x8); // bits 6-7 of the clock_seq_hi_and_reserved to 01
     s[8] = s[13] = s[18] = s[23] = "-";
 
-    var uuid = s.join("");
-    return uuid;
+    return s.join("");
   }
 }

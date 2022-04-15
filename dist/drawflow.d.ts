@@ -1,11 +1,14 @@
 import "./drawflow.css";
+declare type EventCallback<Data = unknown> = (data: Data) => void;
+declare type RegisterEventFunction<Event extends string = string, Data = unknown> = (event: Event, callback: EventCallback<Data>) => boolean;
+declare type DispatchEventFunction<Event extends string = string, Data = unknown> = (event: Event, details: Data) => void;
 declare type EventListener = {
-    on: (event: string, callback: Function) => void;
-    dispatch: (event: string, details?: any) => void;
-    removeListener: (event: string, callback: Function) => void;
+    on: RegisterEventFunction;
+    dispatch: DispatchEventFunction;
+    removeListener: RegisterEventFunction;
 };
 export declare type RenderFunction = (options: {
-    register: any;
+    register: unknown;
     type: string | number;
     content: HTMLElement;
     editor: Drawflow;
@@ -20,7 +23,7 @@ export declare type DrawflowData = {
 export declare type DrawflowNodeData = {
     id: string;
     name: string;
-    data: Record<string, any>;
+    data: Record<string, unknown>;
     class: string;
     html: string;
     typenode: boolean | string | RenderFunction;
@@ -84,7 +87,7 @@ declare type DrawflowOptions = {
 export default class Drawflow {
     container: HTMLElement;
     events: Record<string, {
-        listeners: Function[];
+        listeners: EventCallback[];
     }>;
     precanvas: HTMLElement;
     nodeId: number;
@@ -105,7 +108,7 @@ export default class Drawflow {
     mouse_x: number;
     mouse_y: number;
     first_click: Element;
-    noderegister: Record<string, any>;
+    noderegister: Record<string, unknown>;
     drawflow: DrawflowData;
     module: string;
     editor_mode: "edit" | "view" | "fixed";
@@ -156,15 +159,15 @@ export default class Drawflow {
     _dblclick(e: MouseEvent): void;
     createReroutePoint(ele: HTMLElement): void;
     removeReroutePoint(ele: HTMLElement): void;
-    registerNode(name: string | number, html: any): void;
+    registerNode(name: string | number, html: unknown): void;
     getNodeFromId(id: string): DrawflowNodeData;
     getNodesFromName(name: string): string[];
-    addNode(name: string, num_in: number, num_out: number, ele_pos_x: number, ele_pos_y: number, classoverride: string, data: any, html: string, typenode?: boolean): string;
+    addNode(name: string, num_in: number, num_out: number, ele_pos_x: number, ele_pos_y: number, classoverride: string, data: unknown, html: string, typenode?: boolean): string;
     _addNodeImport(dataNode: DrawflowNodeData, precanvas: HTMLElement): void;
     _addRerouteImport(dataNode: DrawflowNodeData): void;
     changeNodeID(oldId: string, newId: string): boolean;
     updateNodeValue(event: Event): void;
-    updateNodeDataFromId(id: string, data: any): void;
+    updateNodeDataFromId(id: string, data: Record<string, unknown>): void;
     addNodeInput(id: string): void;
     addNodeOutput(id: string): void;
     removeNodeInput(id: string, input_class: string): void;
@@ -212,13 +215,14 @@ export default class Drawflow {
     on(event: "translate", callback: (data: DrawflowPoint) => void): boolean;
     on(event: "updateNodes", callback: (data: {
         id: string;
-        data: any;
+        data: unknown;
     }) => void): boolean;
     on(event: "updateNodeId", callback: (data: {
         newId: string;
         oldId: string;
     }) => void): boolean;
     on(event: "zoom", callback: (data: number) => void): boolean;
+    on(event: string, callback: (data: unknown) => void): boolean;
     removeListener(event: "addReroute", callback: (data: string) => void): boolean;
     removeListener(event: "click", callback: (data: MouseEvent | TouchEvent) => void): boolean;
     removeListener(event: "clickEnd", callback: (data: MouseEvent | TouchEvent) => void): boolean;
@@ -250,13 +254,14 @@ export default class Drawflow {
     removeListener(event: "translate", callback: (data: DrawflowPoint) => void): boolean;
     removeListener(event: "updateNodes", callback: (data: {
         id: string;
-        data: any;
+        data: unknown;
     }) => void): boolean;
     removeListener(event: "updateNodeId", callback: (data: {
         newId: string;
         oldId: string;
     }) => void): boolean;
     removeListener(event: "zoom", callback: (data: number) => void): boolean;
+    removeListener(event: string, callback: (data: unknown) => void): boolean;
     dispatch(event: "addReroute", details: string): boolean;
     dispatch(event: "click", details: MouseEvent | TouchEvent): boolean;
     dispatch(event: "clickEnd", details: MouseEvent | TouchEvent): boolean;
@@ -288,13 +293,14 @@ export default class Drawflow {
     dispatch(event: "translate", details: DrawflowPoint): boolean;
     dispatch(event: "updateNodes", details: {
         id: string;
-        data: any;
+        data: unknown;
     }): boolean;
     dispatch(event: "updateNodeId", details: {
         oldId: string;
         newId: string;
     }): boolean;
     dispatch(event: "zoom", details: number): boolean;
+    dispatch(event: string, details: unknown): boolean;
     getUuid(): string;
 }
 export {};
