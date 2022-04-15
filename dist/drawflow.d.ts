@@ -89,28 +89,26 @@ declare type DrawflowOptions = {
 };
 export default class Drawflow {
     container: HTMLElement;
-    events: Record<string, {
-        listeners: EventCallback[];
-    }>;
+    private events;
     precanvas: HTMLElement;
     nodeId: number;
-    ele_selected: HTMLElement;
-    node_selected: HTMLElement;
-    drag: boolean;
-    drag_point: boolean;
-    editor_selected: boolean;
-    connection: boolean;
-    connection_ele: SVGElement;
-    connection_selected: HTMLElement;
+    private ele_selected;
+    private node_selected;
+    private drag;
+    private drag_point;
+    private editor_selected;
+    private connection;
+    private connection_ele;
+    private connection_selected;
     canvas_x: number;
     canvas_y: number;
-    pos_x: number;
-    pos_x_start: number;
-    pos_y: number;
-    pos_y_start: number;
-    mouse_x: number;
-    mouse_y: number;
-    first_click: Element;
+    private pos_x;
+    private pos_x_start;
+    private pos_y;
+    private pos_y_start;
+    private mouse_x;
+    private mouse_y;
+    private first_click;
     noderegister: Record<string, unknown>;
     drawflow: DrawflowData;
     module: string;
@@ -136,38 +134,37 @@ export default class Drawflow {
     get zoomLevel(): number;
     set zoomLevel(value: number);
     start(): void;
-    _handlePointerdown(ev: PointerEvent): void;
-    _handlePointermove(ev: PointerEvent): void;
-    _handlePointerup(ev: PointerEvent): void;
-    _removeEvent(ev: PointerEvent): void;
-    load(): void;
-    unselectConnectionReroutes(): void;
-    _click(e: MouseEvent | TouchEvent): boolean;
-    _position(e: MouseEvent | TouchEvent): void;
-    _dragEnd(e: MouseEvent | TouchEvent): void;
-    _contextmenu(e: MouseEvent): boolean;
-    _contextmenuDel(): void;
-    _key(e: KeyboardEvent): boolean;
-    _handleZoom(event: WheelEvent): void;
+    private _handlePointerdown;
+    private _handlePointermove;
+    private _handlePointerup;
+    private _removeEvent;
+    private _handleInputStart;
+    private _handleInputMove;
+    private _handleInputEnd;
+    private _handleContextmenu;
+    private _handleKey;
+    private _handleZoom;
+    private _dblclick;
     refreshZoom(): void;
     zoomIn(value?: number): void;
     zoomOut(value?: number): void;
     resetZoom(): void;
+    load(): void;
+    deselectConnection(): void;
     createCurvature(start_pos_x: number, start_pos_y: number, end_pos_x: number, end_pos_y: number, curvature: number): string;
-    _createConnection(ele: HTMLElement): void;
-    _drawConnectionTo(eX: number, eY: number): void;
+    private _createConnection;
+    private _drawConnectionTo;
     addConnection(id_output: string, id_input: string, output_class: string, input_class: string): void;
     updateConnection(connection: HTMLElement, nodeFromElem?: HTMLElement, nodeToElem?: HTMLElement): void;
     updateNodeConnections(id: string): void;
-    _dblclick(e: MouseEvent): void;
     createReroutePoint(ele: HTMLElement): void;
     removeReroutePoint(ele: HTMLElement): void;
     registerNode(name: string | number, html: unknown): void;
     getNodeFromId(id: string): DrawflowNode;
     getNodesFromName(name: string): string[];
     addNode(name: string, num_in: number, num_out: number, ele_pos_x: number, ele_pos_y: number, classoverride: string, data: unknown, html: string, typenode?: boolean): string;
-    _addNodeImport(dataNode: DrawflowNode, precanvas: HTMLElement): void;
-    _addRerouteImport(dataNode: DrawflowNode): void;
+    private _addNodeImport;
+    private _addRerouteImport;
     changeNodeID(oldId: string, newId: string): boolean;
     updateNodeValue(event: Event): void;
     updateNodeDataFromId(id: string, data: DrawflowNodeData): void;
@@ -187,7 +184,7 @@ export default class Drawflow {
     clear(): void;
     export(): DrawflowData;
     import(data: DrawflowData, notify?: boolean): void;
-    on(event: "addReroute", callback: (data: string) => void): boolean;
+    on(event: "rerouteCreated", callback: (data: string) => void): boolean;
     on(event: "click", callback: (data: MouseEvent | TouchEvent) => void): boolean;
     on(event: "clickEnd", callback: (data: MouseEvent | TouchEvent) => void): boolean;
     on(event: "connectionCancel", callback: (data: true) => void): boolean;
@@ -195,7 +192,7 @@ export default class Drawflow {
     on(event: "connectionRemoved", callback: (data: DrawflowConnection) => void): boolean;
     on(event: "connectionSelected", callback: (data: DrawflowConnection) => void): boolean;
     on(event: "connectionStart", callback: (data: DrawflowConnectionOut) => void): boolean;
-    on(event: "connectionUnselected", callback: (data: true) => void): boolean;
+    on(event: "connectionDeselected", callback: (data: true) => void): boolean;
     on(event: "contextmenu", callback: (data: MouseEvent) => void): boolean;
     on(event: "export", callback: (data: DrawflowData) => void): boolean;
     on(event: "import", callback: (data: "import") => void): boolean;
@@ -212,8 +209,8 @@ export default class Drawflow {
     } & DrawflowPoint) => void): boolean;
     on(event: "nodeRemoved", callback: (data: string) => void): boolean;
     on(event: "nodeSelected", callback: (data: string) => void): boolean;
-    on(event: "nodeUnselected", callback: (data: true) => void): boolean;
-    on(event: "removeReroute", callback: (data: string) => void): boolean;
+    on(event: "nodeDeselected", callback: (data: true) => void): boolean;
+    on(event: "rerouteRemoved", callback: (data: string) => void): boolean;
     on(event: "rerouteMoved", callback: (data: string) => void): boolean;
     on(event: "translate", callback: (data: DrawflowPoint) => void): boolean;
     on(event: "updateNodes", callback: (data: {
@@ -226,7 +223,7 @@ export default class Drawflow {
     }) => void): boolean;
     on(event: "zoom", callback: (data: number) => void): boolean;
     on(event: string, callback: (data: unknown) => void): boolean;
-    removeListener(event: "addReroute", callback: (data: string) => void): boolean;
+    removeListener(event: "rerouteCreated", callback: (data: string) => void): boolean;
     removeListener(event: "click", callback: (data: MouseEvent | TouchEvent) => void): boolean;
     removeListener(event: "clickEnd", callback: (data: MouseEvent | TouchEvent) => void): boolean;
     removeListener(event: "connectionCancel", callback: (data: true) => void): boolean;
@@ -234,7 +231,7 @@ export default class Drawflow {
     removeListener(event: "connectionRemoved", callback: (data: DrawflowConnection) => void): boolean;
     removeListener(event: "connectionSelected", callback: (data: DrawflowConnection) => void): boolean;
     removeListener(event: "connectionStart", callback: (data: DrawflowConnectionOut) => void): boolean;
-    removeListener(event: "connectionUnselected", callback: (data: true) => void): boolean;
+    removeListener(event: "connectionDeselected", callback: (data: true) => void): boolean;
     removeListener(event: "contextmenu", callback: (data: MouseEvent) => void): boolean;
     removeListener(event: "export", callback: (data: DrawflowData) => void): boolean;
     removeListener(event: "import", callback: (data: "import") => void): boolean;
@@ -251,8 +248,8 @@ export default class Drawflow {
     } & DrawflowPoint) => void): boolean;
     removeListener(event: "nodeRemoved", callback: (data: string) => void): boolean;
     removeListener(event: "nodeSelected", callback: (data: string) => void): boolean;
-    removeListener(event: "nodeUnselected", callback: (data: true) => void): boolean;
-    removeListener(event: "removeReroute", callback: (data: string) => void): boolean;
+    removeListener(event: "nodeDeselected", callback: (data: true) => void): boolean;
+    removeListener(event: "rerouteRemoved", callback: (data: string) => void): boolean;
     removeListener(event: "rerouteMoved", callback: (data: string) => void): boolean;
     removeListener(event: "translate", callback: (data: DrawflowPoint) => void): boolean;
     removeListener(event: "updateNodes", callback: (data: {
@@ -265,7 +262,7 @@ export default class Drawflow {
     }) => void): boolean;
     removeListener(event: "zoom", callback: (data: number) => void): boolean;
     removeListener(event: string, callback: (data: unknown) => void): boolean;
-    dispatch(event: "addReroute", details: string): boolean;
+    dispatch(event: "rerouteCreated", details: string): boolean;
     dispatch(event: "click", details: MouseEvent | TouchEvent): boolean;
     dispatch(event: "clickEnd", details: MouseEvent | TouchEvent): boolean;
     dispatch(event: "connectionCancel", details: true): boolean;
@@ -273,7 +270,7 @@ export default class Drawflow {
     dispatch(event: "connectionRemoved", details: DrawflowConnection): boolean;
     dispatch(event: "connectionSelected", details: DrawflowConnection): boolean;
     dispatch(event: "connectionStart", details: DrawflowConnectionOut): boolean;
-    dispatch(event: "connectionUnselected", details: true): boolean;
+    dispatch(event: "connectionDeselected", details: true): boolean;
     dispatch(event: "contextmenu", details: MouseEvent): boolean;
     dispatch(event: "export", details: DrawflowData): boolean;
     dispatch(event: "import", details: "import"): boolean;
@@ -290,8 +287,8 @@ export default class Drawflow {
     } & DrawflowPoint): boolean;
     dispatch(event: "nodeRemoved", details: string): boolean;
     dispatch(event: "nodeSelected", details: string): boolean;
-    dispatch(event: "nodeUnselected", details: true): boolean;
-    dispatch(event: "removeReroute", details: string): boolean;
+    dispatch(event: "nodeDeselected", details: true): boolean;
+    dispatch(event: "rerouteRemoved", details: string): boolean;
     dispatch(event: "rerouteMoved", details: string): boolean;
     dispatch(event: "translate", details: DrawflowPoint): boolean;
     dispatch(event: "updateNodes", details: {
@@ -304,7 +301,7 @@ export default class Drawflow {
     }): boolean;
     dispatch(event: "zoom", details: number): boolean;
     dispatch(event: string, details: unknown): boolean;
-    getUuid(): string;
+    private getUuid;
 }
 export {};
 //# sourceMappingURL=drawflow.d.ts.map

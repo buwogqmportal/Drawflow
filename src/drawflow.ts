@@ -281,48 +281,48 @@ type DrawflowOptions = {
 };
 
 export default class Drawflow {
-  events: Record<string, { listeners: EventCallback[] }> = {};
-  precanvas: HTMLElement = null;
-  nodeId = 1;
-  ele_selected: HTMLElement = null;
-  node_selected: HTMLElement = null;
-  drag = false;
-  drag_point = false;
-  editor_selected = false;
-  connection = false;
-  connection_ele: SVGElement = null;
-  connection_selected: HTMLElement = null;
-  canvas_x = 0;
-  canvas_y = 0;
-  pos_x = 0;
-  pos_x_start = 0;
-  pos_y = 0;
-  pos_y_start = 0;
-  mouse_x = 0;
-  mouse_y = 0;
-  first_click: Element = null;
+  private events: Record<string, { listeners: EventCallback[] }> = {};
+  public precanvas: HTMLElement = null;
+  public nodeId = 1;
+  private ele_selected: HTMLElement = null;
+  private node_selected: HTMLElement = null;
+  private drag = false;
+  private drag_point = false;
+  private editor_selected = false;
+  private connection = false;
+  private connection_ele: SVGElement = null;
+  private connection_selected: HTMLElement = null;
+  public canvas_x = 0;
+  public canvas_y = 0;
+  private pos_x = 0;
+  private pos_x_start = 0;
+  private pos_y = 0;
+  private pos_y_start = 0;
+  private mouse_x = 0;
+  private mouse_y = 0;
+  private first_click: Element = null;
 
-  noderegister: Record<string, unknown> = {};
-  drawflow: DrawflowData = { drawflow: { Home: { data: {} } } };
+  public noderegister: Record<string, unknown> = {};
+  public drawflow: DrawflowData = { drawflow: { Home: { data: {} } } };
 
   // Configurable options
-  module = "Home";
-  editor_mode: "edit" | "view" | "fixed" = "edit";
-  zoom = 1;
-  zoom_max = 2;
-  zoom_min = 1 / 10;
-  zoom_value = 0.2;
-  zoom_last_value = 1;
-  curvature = 0.5;
-  reroute = false;
-  reroute_fix_curvature = false;
-  reroute_curvature_start_end = 0.5;
-  reroute_curvature = 0.5;
-  reroute_width = 6;
-  force_first_input = false;
-  draggable_inputs = true;
-  useuuid = false;
-  render: RenderFunction;
+  public module = "Home";
+  public editor_mode: "edit" | "view" | "fixed" = "edit";
+  public zoom = 1;
+  public zoom_max = 2;
+  public zoom_min = 1 / 10;
+  public zoom_value = 0.2;
+  public zoom_last_value = 1;
+  public curvature = 0.5;
+  public reroute = false;
+  public reroute_fix_curvature = false;
+  public reroute_curvature_start_end = 0.5;
+  public reroute_curvature = 0.5;
+  public reroute_width = 6;
+  public force_first_input = false;
+  public draggable_inputs = true;
+  public useuuid = false;
+  public render: RenderFunction;
 
   // Mobile
   evCache: PointerEvent[] = [];
@@ -361,7 +361,7 @@ export default class Drawflow {
     this.refreshZoom();
   }
 
-  start() {
+  public start() {
     // console.info("Start Drawflow!!");
     this.container.classList.add("parent-drawflow");
     this.container.tabIndex = 0;
@@ -370,21 +370,36 @@ export default class Drawflow {
     this.container.appendChild(this.precanvas);
 
     /* Mouse and Touch Actions */
-    this.container.addEventListener("mouseup", this._dragEnd.bind(this));
-    this.container.addEventListener("mousemove", this._position.bind(this));
-    this.container.addEventListener("mousedown", this._click.bind(this));
+    this.container.addEventListener("mouseup", this._handleInputEnd.bind(this));
+    this.container.addEventListener(
+      "mousemove",
+      this._handleInputMove.bind(this)
+    );
+    this.container.addEventListener(
+      "mousedown",
+      this._handleInputStart.bind(this)
+    );
 
-    this.container.addEventListener("touchend", this._dragEnd.bind(this));
-    this.container.addEventListener("touchmove", this._position.bind(this));
-    this.container.addEventListener("touchstart", this._click.bind(this));
+    this.container.addEventListener(
+      "touchend",
+      this._handleInputEnd.bind(this)
+    );
+    this.container.addEventListener(
+      "touchmove",
+      this._handleInputMove.bind(this)
+    );
+    this.container.addEventListener(
+      "touchstart",
+      this._handleInputStart.bind(this)
+    );
 
     /* Context Menu */
     this.container.addEventListener(
       "contextmenu",
-      this._contextmenu.bind(this)
+      this._handleContextmenu.bind(this)
     );
     /* Delete */
-    this.container.addEventListener("keydown", this._key.bind(this));
+    this.container.addEventListener("keydown", this._handleKey.bind(this));
 
     /* Zoom Mouse */
     this.container.addEventListener("wheel", this._handleZoom.bind(this));
@@ -404,11 +419,11 @@ export default class Drawflow {
   }
 
   /* Mobile zoom */
-  _handlePointerdown(ev: PointerEvent) {
+  private _handlePointerdown(ev: PointerEvent) {
     this.evCache.push(ev);
   }
 
-  _handlePointermove(ev: PointerEvent) {
+  private _handlePointermove(ev: PointerEvent) {
     for (let i = 0; i < this.evCache.length; i++) {
       if (ev.pointerId == this.evCache[i].pointerId) {
         this.evCache[i] = ev;
@@ -437,14 +452,14 @@ export default class Drawflow {
     }
   }
 
-  _handlePointerup(ev: PointerEvent) {
+  private _handlePointerup(ev: PointerEvent) {
     this._removeEvent(ev);
     if (this.evCache.length < 2) {
       this.prevDiff = -1;
     }
   }
 
-  _removeEvent(ev: PointerEvent) {
+  private _removeEvent(ev: PointerEvent) {
     // Remove this event from the target's cache
     for (let i = this.evCache.length - 1; i >= 0; i--) {
       if (this.evCache[i].pointerId == ev.pointerId) {
@@ -455,64 +470,18 @@ export default class Drawflow {
   }
   /* End Mobile Zoom */
 
-  load() {
-    for (const key in this.drawflow.drawflow[this.module].data) {
-      this._addNodeImport(
-        this.drawflow.drawflow[this.module].data[key],
-        this.precanvas
-      );
-    }
-
-    if (this.reroute) {
-      for (const key in this.drawflow.drawflow[this.module].data) {
-        this._addRerouteImport(this.drawflow.drawflow[this.module].data[key]);
-      }
-    }
-
-    for (const key in this.drawflow.drawflow[this.module].data) {
-      this.updateNodeConnections("node-" + key);
-    }
-
-    const editor = this.drawflow.drawflow;
-    let number = 1;
-
-    for (const moduleName in editor) {
-      if (Object.hasOwnProperty.call(editor, moduleName)) {
-        const moduleData = editor[moduleName].data;
-        for (const id in moduleData) {
-          if (Object.hasOwnProperty.call(moduleData, id)) {
-            number = Math.max(number, parseInt(id) + 1);
-          }
-        }
-      }
-    }
-
-    this.nodeId = number;
-  }
-
-  unselectConnectionReroutes() {
-    this.dispatch("connectionUnselected", true);
-    if (this.reroute_fix_curvature) {
-      this.connection_selected.parentElement
-        .querySelectorAll(".main-path")
-        .forEach((item: { classList: { remove: (arg0: string) => void } }) => {
-          item.classList.remove("selected");
-        });
-    }
-  }
-
-  _click(e: MouseEvent | TouchEvent) {
+  private _handleInputStart(e: MouseEvent | TouchEvent) {
     const clearSelection = () => {
       if (this.node_selected != null) {
         this.node_selected.classList.remove("selected");
         if (this.node_selected != this.ele_selected) {
           this.node_selected = null;
-          this.dispatch("nodeUnselected", true);
+          this.dispatch("nodeDeselected", true);
         }
       }
       if (this.connection_selected != null) {
         this.connection_selected.classList.remove("selected");
-        this.unselectConnectionReroutes();
+        this.deselectConnection();
         this.connection_selected = null;
       }
     };
@@ -546,7 +515,11 @@ export default class Drawflow {
         this.first_click = target;
         this.ele_selected = target;
         if (e.button === 0) {
-          this._contextmenuDel();
+          if (this.precanvas.getElementsByClassName("drawflow-delete").length) {
+            this.precanvas
+              .getElementsByClassName("drawflow-delete")[0]
+              .remove();
+          }
         }
 
         if (target.closest(".drawflow_content_node") != null) {
@@ -653,7 +626,7 @@ export default class Drawflow {
     this.dispatch("clickEnd", e);
   }
 
-  _position(e: MouseEvent | TouchEvent) {
+  private _handleInputMove(e: MouseEvent | TouchEvent) {
     let e_pos_x: number, e_pos_y: number;
     if (e instanceof TouchEvent) {
       e_pos_x = e.touches[0].clientX;
@@ -748,7 +721,7 @@ export default class Drawflow {
     this.dispatch("mouseMove", { x: e_pos_x, y: e_pos_y });
   }
 
-  _dragEnd(e: MouseEvent | TouchEvent) {
+  private _handleInputEnd(e: MouseEvent | TouchEvent) {
     let e_pos_x: number;
     let e_pos_y: number;
     let ele_last: Element;
@@ -890,7 +863,7 @@ export default class Drawflow {
     this.dispatch("mouseUp", e);
   }
 
-  _contextmenu(e: MouseEvent): boolean {
+  private _handleContextmenu(e: MouseEvent): boolean {
     this.dispatch("contextmenu", e);
     e.preventDefault();
     if (this.editor_mode === "fixed" || this.editor_mode === "view") {
@@ -921,13 +894,7 @@ export default class Drawflow {
     }
   }
 
-  _contextmenuDel() {
-    if (this.precanvas.getElementsByClassName("drawflow-delete").length) {
-      this.precanvas.getElementsByClassName("drawflow-delete")[0].remove();
-    }
-  }
-
-  _key(e: KeyboardEvent): boolean {
+  private _handleKey(e: KeyboardEvent): boolean {
     this.dispatch("keydown", e);
     if (this.editor_mode === "fixed" || this.editor_mode === "view") {
       return false;
@@ -948,7 +915,7 @@ export default class Drawflow {
     }
   }
 
-  _handleZoom(event: WheelEvent) {
+  private _handleZoom(event: WheelEvent) {
     event.preventDefault();
     if (event.ctrlKey) {
       this.zoomLevel -= event.deltaY / 100;
@@ -967,7 +934,17 @@ export default class Drawflow {
     }
   }
 
-  refreshZoom() {
+  private _dblclick(e: MouseEvent) {
+    if (this.connection_selected != null && this.reroute) {
+      this.createReroutePoint(this.connection_selected);
+    }
+
+    if ((e.target as HTMLElement).classList[0] === "point") {
+      this.removeReroutePoint(e.target as HTMLElement);
+    }
+  }
+
+  public refreshZoom() {
     this.zoom = Math.min(Math.max(this.zoom_min, this.zoom), this.zoom_max);
 
     this.dispatch("zoom", this.zoom);
@@ -984,22 +961,68 @@ export default class Drawflow {
       ")";
   }
 
-  zoomIn(value = this.zoom_value) {
+  public zoomIn(value = this.zoom_value) {
     this.zoomLevel += value;
   }
 
-  zoomOut(value = this.zoom_value) {
+  public zoomOut(value = this.zoom_value) {
     this.zoomLevel -= value;
   }
 
-  resetZoom() {
+  public resetZoom() {
     if (this.zoom != 1) {
       this.zoom = 1;
       this.refreshZoom();
     }
   }
 
-  createCurvature(
+  public load() {
+    for (const key in this.drawflow.drawflow[this.module].data) {
+      this._addNodeImport(
+        this.drawflow.drawflow[this.module].data[key],
+        this.precanvas
+      );
+    }
+
+    if (this.reroute) {
+      for (const key in this.drawflow.drawflow[this.module].data) {
+        this._addRerouteImport(this.drawflow.drawflow[this.module].data[key]);
+      }
+    }
+
+    for (const key in this.drawflow.drawflow[this.module].data) {
+      this.updateNodeConnections("node-" + key);
+    }
+
+    const editor = this.drawflow.drawflow;
+    let number = 1;
+
+    for (const moduleName in editor) {
+      if (Object.hasOwnProperty.call(editor, moduleName)) {
+        const moduleData = editor[moduleName].data;
+        for (const id in moduleData) {
+          if (Object.hasOwnProperty.call(moduleData, id)) {
+            number = Math.max(number, parseInt(id) + 1);
+          }
+        }
+      }
+    }
+
+    this.nodeId = number;
+  }
+
+  public deselectConnection() {
+    this.dispatch("connectionDeselected", true);
+    if (this.reroute_fix_curvature) {
+      this.connection_selected.parentElement
+        .querySelectorAll(".main-path")
+        .forEach((item: { classList: { remove: (arg0: string) => void } }) => {
+          item.classList.remove("selected");
+        });
+    }
+  }
+
+  public createCurvature(
     start_pos_x: number,
     start_pos_y: number,
     end_pos_x: number,
@@ -1021,7 +1044,7 @@ export default class Drawflow {
     );
   }
 
-  _createConnection(ele: HTMLElement) {
+  private _createConnection(ele: HTMLElement) {
     const connection = document.createElementNS(
       "http://www.w3.org/2000/svg",
       "svg"
@@ -1044,7 +1067,7 @@ export default class Drawflow {
     });
   }
 
-  _drawConnectionTo(eX: number, eY: number) {
+  private _drawConnectionTo(eX: number, eY: number) {
     const precanvas = this.precanvas;
     const zoom = this.zoom;
 
@@ -1069,7 +1092,7 @@ export default class Drawflow {
     path.setAttributeNS(null, "d", lineCurve);
   }
 
-  addConnection(
+  public addConnection(
     id_output: string,
     id_input: string,
     output_class: string,
@@ -1137,7 +1160,7 @@ export default class Drawflow {
     }
   }
 
-  updateConnection(
+  public updateConnection(
     connection: HTMLElement,
     nodeFromElem?: HTMLElement,
     nodeToElem?: HTMLElement
@@ -1253,7 +1276,7 @@ export default class Drawflow {
     }
   }
 
-  updateNodeConnections(id: string) {
+  public updateNodeConnections(id: string) {
     const connectionInTag = "node_in_" + id;
     const connectionOutTag = "node_out_" + id;
     const container = this.container;
@@ -1275,17 +1298,7 @@ export default class Drawflow {
     }
   }
 
-  _dblclick(e: MouseEvent) {
-    if (this.connection_selected != null && this.reroute) {
-      this.createReroutePoint(this.connection_selected);
-    }
-
-    if ((e.target as HTMLElement).classList[0] === "point") {
-      this.removeReroutePoint(e.target as HTMLElement);
-    }
-  }
-
-  createReroutePoint(ele: HTMLElement) {
+  public createReroutePoint(ele: HTMLElement) {
     this.connection_selected.classList.remove("selected");
     const { output_id, input_id, output_class, input_class } =
       getConnectionData(this.connection_selected.parentElement.classList);
@@ -1372,11 +1385,11 @@ export default class Drawflow {
       });
     }
 
-    this.dispatch("addReroute", output_id);
+    this.dispatch("rerouteCreated", output_id);
     this.updateConnection(ele.parentElement);
   }
 
-  removeReroutePoint(ele: HTMLElement) {
+  public removeReroutePoint(ele: HTMLElement) {
     const { output_id, input_id, output_class, input_class } =
       getConnectionData(ele.parentElement.classList);
 
@@ -1403,15 +1416,15 @@ export default class Drawflow {
     ].connections[searchConnection].points.splice(numberPointPosition, 1);
 
     ele.remove();
-    this.dispatch("removeReroute", output_id);
+    this.dispatch("rerouteRemoved", output_id);
     this.updateNodeConnections(`node-${output_id}`);
   }
 
-  registerNode(name: string | number, html: unknown) {
+  public registerNode(name: string | number, html: unknown) {
     this.noderegister[name] = html;
   }
 
-  getNodeFromId(id: string): DrawflowNode {
+  public getNodeFromId(id: string): DrawflowNode {
     const moduleName = this.getModuleFromNodeId(id);
     if (!moduleName) return;
     return JSON.parse(
@@ -1419,7 +1432,7 @@ export default class Drawflow {
     );
   }
 
-  getNodesFromName(name: string): string[] {
+  public getNodesFromName(name: string): string[] {
     const nodes: string[] = [];
     const editor = this.drawflow.drawflow;
     Object.keys(editor).map((moduleName) => {
@@ -1432,7 +1445,7 @@ export default class Drawflow {
     return nodes;
   }
 
-  addNode(
+  public addNode(
     name: string,
     num_in: number,
     num_out: number,
@@ -1549,7 +1562,7 @@ export default class Drawflow {
     return newNodeId;
   }
 
-  _addNodeImport(dataNode: DrawflowNode, precanvas: HTMLElement) {
+  private _addNodeImport(dataNode: DrawflowNode, precanvas: HTMLElement) {
     dataNode.id = dataNode.id.toString();
 
     const parent = document.createElement("div");
@@ -1643,7 +1656,7 @@ export default class Drawflow {
     this.precanvas.appendChild(parent);
   }
 
-  _addRerouteImport(dataNode: DrawflowNode) {
+  private _addRerouteImport(dataNode: DrawflowNode) {
     const reroute_width = this.reroute_width;
     const reroute_fix_curvature = this.reroute_fix_curvature;
     const container = this.container;
@@ -1710,7 +1723,7 @@ export default class Drawflow {
     }
   }
 
-  changeNodeID(oldId: string, newId: string): boolean {
+  public changeNodeID(oldId: string, newId: string): boolean {
     const moduleName = this.getModuleFromNodeId(oldId);
 
     if (!moduleName) return false;
@@ -1780,7 +1793,7 @@ export default class Drawflow {
     return true;
   }
 
-  updateNodeValue(event: Event) {
+  public updateNodeValue(event: Event) {
     const etarget = event.target as HTMLElement;
     const attr = etarget.attributes;
 
@@ -1811,7 +1824,7 @@ export default class Drawflow {
     }
   }
 
-  updateNodeDataFromId(id: string, data: DrawflowNodeData) {
+  public updateNodeDataFromId(id: string, data: DrawflowNodeData) {
     const moduleName = this.getModuleFromNodeId(id);
     this.drawflow.drawflow[moduleName].data[id].data = data;
     if (this.module === moduleName) {
@@ -1823,7 +1836,7 @@ export default class Drawflow {
     }
   }
 
-  addNodeInput(id: string) {
+  public addNodeInput(id: string) {
     const moduleName = this.getModuleFromNodeId(id);
     const infoNode = this.getNodeFromId(id);
     const numInputs = Object.keys(infoNode.inputs).length;
@@ -1841,7 +1854,7 @@ export default class Drawflow {
     ] = { connections: [] };
   }
 
-  addNodeOutput(id: string) {
+  public addNodeOutput(id: string) {
     const moduleName = this.getModuleFromNodeId(id);
     const infoNode = this.getNodeFromId(id);
     const numOutputs = Object.keys(infoNode.outputs).length;
@@ -1859,7 +1872,7 @@ export default class Drawflow {
     ] = { connections: [] };
   }
 
-  removeNodeInput(id: string, input_class: string) {
+  public removeNodeInput(id: string, input_class: string) {
     const moduleName = this.getModuleFromNodeId(id);
     const nodeDataRef = this.drawflow.drawflow[moduleName].data[id];
 
@@ -1936,7 +1949,7 @@ export default class Drawflow {
     this.updateNodeConnections("node-" + id);
   }
 
-  removeNodeOutput(id: string, output_class: string) {
+  public removeNodeOutput(id: string, output_class: string) {
     const moduleName = this.getModuleFromNodeId(id);
     const nodeDataRef = this.drawflow.drawflow[moduleName].data[id];
 
@@ -2019,7 +2032,7 @@ export default class Drawflow {
     this.updateNodeConnections("node-" + id);
   }
 
-  removeNodeId(id: string) {
+  public removeNodeId(id: string) {
     this.removeNodeConnectionsByNodeId(id);
     const moduleName = this.getModuleFromNodeId(getNodeID(id));
     if (this.module === moduleName) {
@@ -2029,7 +2042,7 @@ export default class Drawflow {
     this.dispatch("nodeRemoved", getNodeID(id));
   }
 
-  removeSelectedConnection() {
+  public removeSelectedConnection() {
     if (this.connection_selected != null) {
       const elem = this.connection_selected.parentElement;
 
@@ -2067,7 +2080,7 @@ export default class Drawflow {
     }
   }
 
-  removeConnection(
+  public removeConnection(
     id_output: string,
     id_input: string,
     output_class: string,
@@ -2137,7 +2150,7 @@ export default class Drawflow {
     }
   }
 
-  removeNodeConnectionsByNodeId(id: string) {
+  public removeNodeConnectionsByNodeId(id: string) {
     const connectionInTag = "node_in_" + id;
     const connectionOutTag = "node_out_" + id;
 
@@ -2214,7 +2227,7 @@ export default class Drawflow {
     }
   }
 
-  getModuleFromNodeId(id: number | string): string {
+  public getModuleFromNodeId(id: number | string): string {
     const editor = this.drawflow.drawflow;
 
     for (const moduleName in editor) {
@@ -2232,12 +2245,12 @@ export default class Drawflow {
     }
   }
 
-  addModule(name: string) {
+  public addModule(name: string) {
     this.drawflow.drawflow[name] = { data: {} };
     this.dispatch("moduleCreated", name);
   }
 
-  changeModule(name: string) {
+  public changeModule(name: string) {
     this.dispatch("moduleChanged", name);
     this.module = name;
     this.precanvas.innerHTML = "";
@@ -2253,7 +2266,7 @@ export default class Drawflow {
     this.import(this.drawflow, false);
   }
 
-  removeModule(name: string) {
+  public removeModule(name: string) {
     if (this.module === name) {
       this.changeModule("Home");
     }
@@ -2261,27 +2274,27 @@ export default class Drawflow {
     this.dispatch("moduleRemoved", name);
   }
 
-  clearSelectedModule() {
+  public clearSelectedModule() {
     while (this.precanvas.hasChildNodes()) {
       this.precanvas.firstChild.remove();
     }
     this.drawflow.drawflow[this.module] = { data: {} };
   }
 
-  clear() {
+  public clear() {
     while (this.precanvas.hasChildNodes()) {
       this.precanvas.firstChild.remove();
     }
     this.drawflow = { drawflow: { Home: { data: {} } } };
   }
 
-  export(): DrawflowData {
+  public export(): DrawflowData {
     const dataExport = JSON.parse(JSON.stringify(this.drawflow));
     this.dispatch("export", dataExport);
     return dataExport;
   }
 
-  import(data: DrawflowData, notify = true) {
+  public import(data: DrawflowData, notify = true) {
     this.clear();
     this.drawflow = JSON.parse(JSON.stringify(data));
     this.load();
@@ -2291,68 +2304,83 @@ export default class Drawflow {
   }
 
   /* Events */
-  on(event: "addReroute", callback: (data: string) => void): boolean;
-  on(
+  public on(event: "rerouteCreated", callback: (data: string) => void): boolean;
+  public on(
     event: "click",
     callback: (data: MouseEvent | TouchEvent) => void
   ): boolean;
-  on(
+  public on(
     event: "clickEnd",
     callback: (data: MouseEvent | TouchEvent) => void
   ): boolean;
-  on(event: "connectionCancel", callback: (data: true) => void): boolean;
-  on(
+  public on(event: "connectionCancel", callback: (data: true) => void): boolean;
+  public on(
     event: "connectionCreated",
     callback: (data: DrawflowConnection) => void
   ): boolean;
-  on(
+  public on(
     event: "connectionRemoved",
     callback: (data: DrawflowConnection) => void
   ): boolean;
-  on(
+  public on(
     event: "connectionSelected",
     callback: (data: DrawflowConnection) => void
   ): boolean;
-  on(
+  public on(
     event: "connectionStart",
     callback: (data: DrawflowConnectionOut) => void
   ): boolean;
-  on(event: "connectionUnselected", callback: (data: true) => void): boolean;
-  on(event: "contextmenu", callback: (data: MouseEvent) => void): boolean;
-  on(event: "export", callback: (data: DrawflowData) => void): boolean;
-  on(event: "import", callback: (data: "import") => void): boolean;
-  on(event: "keydown", callback: (data: KeyboardEvent) => void): boolean;
-  on(event: "moduleChanged", callback: (data: string) => void): boolean;
-  on(event: "moduleCreated", callback: (data: string) => void): boolean;
-  on(event: "moduleRemoved", callback: (data: string) => void): boolean;
-  on(event: "mouseMove", callback: (data: DrawflowPoint) => void): boolean;
-  on(
+  public on(
+    event: "connectionDeselected",
+    callback: (data: true) => void
+  ): boolean;
+  public on(
+    event: "contextmenu",
+    callback: (data: MouseEvent) => void
+  ): boolean;
+  public on(event: "export", callback: (data: DrawflowData) => void): boolean;
+  public on(event: "import", callback: (data: "import") => void): boolean;
+  public on(event: "keydown", callback: (data: KeyboardEvent) => void): boolean;
+  public on(event: "moduleChanged", callback: (data: string) => void): boolean;
+  public on(event: "moduleCreated", callback: (data: string) => void): boolean;
+  public on(event: "moduleRemoved", callback: (data: string) => void): boolean;
+  public on(
+    event: "mouseMove",
+    callback: (data: DrawflowPoint) => void
+  ): boolean;
+  public on(
     event: "mouseUp",
     callback: (data: MouseEvent | TouchEvent) => void
   ): boolean;
-  on(event: "nodeCreated", callback: (data: string) => void): boolean;
-  on(event: "nodeDataChanged", callback: (data: string) => void): boolean;
-  on(
+  public on(event: "nodeCreated", callback: (data: string) => void): boolean;
+  public on(
+    event: "nodeDataChanged",
+    callback: (data: string) => void
+  ): boolean;
+  public on(
     event: "nodeMoved",
     callback: (data: { id: string } & DrawflowPoint) => void
   ): boolean;
-  on(event: "nodeRemoved", callback: (data: string) => void): boolean;
-  on(event: "nodeSelected", callback: (data: string) => void): boolean;
-  on(event: "nodeUnselected", callback: (data: true) => void): boolean;
-  on(event: "removeReroute", callback: (data: string) => void): boolean;
-  on(event: "rerouteMoved", callback: (data: string) => void): boolean;
-  on(event: "translate", callback: (data: DrawflowPoint) => void): boolean;
-  on(
+  public on(event: "nodeRemoved", callback: (data: string) => void): boolean;
+  public on(event: "nodeSelected", callback: (data: string) => void): boolean;
+  public on(event: "nodeDeselected", callback: (data: true) => void): boolean;
+  public on(event: "rerouteRemoved", callback: (data: string) => void): boolean;
+  public on(event: "rerouteMoved", callback: (data: string) => void): boolean;
+  public on(
+    event: "translate",
+    callback: (data: DrawflowPoint) => void
+  ): boolean;
+  public on(
     event: "updateNodes",
     callback: (data: { id: string; data: unknown }) => void
   ): boolean;
-  on(
+  public on(
     event: "updateNodeId",
     callback: (data: { newId: string; oldId: string }) => void
   ): boolean;
-  on(event: "zoom", callback: (data: number) => void): boolean;
-  on(event: string, callback: (data: unknown) => void): boolean;
-  on(event: string, callback: unknown): boolean {
+  public on(event: "zoom", callback: (data: number) => void): boolean;
+  public on(event: string, callback: (data: unknown) => void): boolean;
+  public on(event: string, callback: unknown): boolean {
     // Check if the callback is not a function
     if (typeof callback !== "function") {
       console.error(
@@ -2377,122 +2405,131 @@ export default class Drawflow {
     return true;
   }
 
-  removeListener(
-    event: "addReroute",
+  public removeListener(
+    event: "rerouteCreated",
     callback: (data: string) => void
   ): boolean;
-  removeListener(
+  public removeListener(
     event: "click",
     callback: (data: MouseEvent | TouchEvent) => void
   ): boolean;
-  removeListener(
+  public removeListener(
     event: "clickEnd",
     callback: (data: MouseEvent | TouchEvent) => void
   ): boolean;
-  removeListener(
+  public removeListener(
     event: "connectionCancel",
     callback: (data: true) => void
   ): boolean;
-  removeListener(
+  public removeListener(
     event: "connectionCreated",
     callback: (data: DrawflowConnection) => void
   ): boolean;
-  removeListener(
+  public removeListener(
     event: "connectionRemoved",
     callback: (data: DrawflowConnection) => void
   ): boolean;
-  removeListener(
+  public removeListener(
     event: "connectionSelected",
     callback: (data: DrawflowConnection) => void
   ): boolean;
-  removeListener(
+  public removeListener(
     event: "connectionStart",
     callback: (data: DrawflowConnectionOut) => void
   ): boolean;
-  removeListener(
-    event: "connectionUnselected",
+  public removeListener(
+    event: "connectionDeselected",
     callback: (data: true) => void
   ): boolean;
-  removeListener(
+  public removeListener(
     event: "contextmenu",
     callback: (data: MouseEvent) => void
   ): boolean;
-  removeListener(
+  public removeListener(
     event: "export",
     callback: (data: DrawflowData) => void
   ): boolean;
-  removeListener(event: "import", callback: (data: "import") => void): boolean;
-  removeListener(
+  public removeListener(
+    event: "import",
+    callback: (data: "import") => void
+  ): boolean;
+  public removeListener(
     event: "keydown",
     callback: (data: KeyboardEvent) => void
   ): boolean;
-  removeListener(
+  public removeListener(
     event: "moduleChanged",
     callback: (data: string) => void
   ): boolean;
-  removeListener(
+  public removeListener(
     event: "moduleCreated",
     callback: (data: string) => void
   ): boolean;
-  removeListener(
+  public removeListener(
     event: "moduleRemoved",
     callback: (data: string) => void
   ): boolean;
-  removeListener(
+  public removeListener(
     event: "mouseMove",
     callback: (data: DrawflowPoint) => void
   ): boolean;
-  removeListener(
+  public removeListener(
     event: "mouseUp",
     callback: (data: MouseEvent | TouchEvent) => void
   ): boolean;
-  removeListener(
+  public removeListener(
     event: "nodeCreated",
     callback: (data: string) => void
   ): boolean;
-  removeListener(
+  public removeListener(
     event: "nodeDataChanged",
     callback: (data: string) => void
   ): boolean;
-  removeListener(
+  public removeListener(
     event: "nodeMoved",
     callback: (data: { id: string } & DrawflowPoint) => void
   ): boolean;
-  removeListener(
+  public removeListener(
     event: "nodeRemoved",
     callback: (data: string) => void
   ): boolean;
-  removeListener(
+  public removeListener(
     event: "nodeSelected",
     callback: (data: string) => void
   ): boolean;
-  removeListener(
-    event: "nodeUnselected",
+  public removeListener(
+    event: "nodeDeselected",
     callback: (data: true) => void
   ): boolean;
-  removeListener(
-    event: "removeReroute",
+  public removeListener(
+    event: "rerouteRemoved",
     callback: (data: string) => void
   ): boolean;
-  removeListener(
+  public removeListener(
     event: "rerouteMoved",
     callback: (data: string) => void
   ): boolean;
-  removeListener(
+  public removeListener(
     event: "translate",
     callback: (data: DrawflowPoint) => void
   ): boolean;
-  removeListener(
+  public removeListener(
     event: "updateNodes",
     callback: (data: { id: string; data: unknown }) => void
   ): boolean;
-  removeListener(
+  public removeListener(
     event: "updateNodeId",
     callback: (data: { newId: string; oldId: string }) => void
   ): boolean;
-  removeListener(event: "zoom", callback: (data: number) => void): boolean;
-  removeListener(event: string, callback: (data: unknown) => void): boolean;
-  removeListener(event: string, callback: unknown): boolean {
+  public removeListener(
+    event: "zoom",
+    callback: (data: number) => void
+  ): boolean;
+  public removeListener(
+    event: string,
+    callback: (data: unknown) => void
+  ): boolean;
+  public removeListener(event: string, callback: unknown): boolean {
     // Check if this event not exists
 
     if (!this.events[event]) return false;
@@ -2507,47 +2544,59 @@ export default class Drawflow {
     return hasListener;
   }
 
-  dispatch(event: "addReroute", details: string): boolean;
-  dispatch(event: "click", details: MouseEvent | TouchEvent): boolean;
-  dispatch(event: "clickEnd", details: MouseEvent | TouchEvent): boolean;
-  dispatch(event: "connectionCancel", details: true): boolean;
-  dispatch(event: "connectionCreated", details: DrawflowConnection): boolean;
-  dispatch(event: "connectionRemoved", details: DrawflowConnection): boolean;
-  dispatch(event: "connectionSelected", details: DrawflowConnection): boolean;
-  dispatch(event: "connectionStart", details: DrawflowConnectionOut): boolean;
-  dispatch(event: "connectionUnselected", details: true): boolean;
-  dispatch(event: "contextmenu", details: MouseEvent): boolean;
-  dispatch(event: "export", details: DrawflowData): boolean;
-  dispatch(event: "import", details: "import"): boolean;
-  dispatch(event: "keydown", details: KeyboardEvent): boolean;
-  dispatch(event: "moduleChanged", details: string): boolean;
-  dispatch(event: "moduleCreated", details: string): boolean;
-  dispatch(event: "moduleRemoved", details: string): boolean;
-  dispatch(event: "mouseMove", details: DrawflowPoint): boolean;
-  dispatch(event: "mouseUp", details: MouseEvent | TouchEvent): boolean;
-  dispatch(event: "nodeCreated", details: string): boolean;
-  dispatch(event: "nodeDataChanged", details: string): boolean;
-  dispatch(
+  public dispatch(event: "rerouteCreated", details: string): boolean;
+  public dispatch(event: "click", details: MouseEvent | TouchEvent): boolean;
+  public dispatch(event: "clickEnd", details: MouseEvent | TouchEvent): boolean;
+  public dispatch(event: "connectionCancel", details: true): boolean;
+  public dispatch(
+    event: "connectionCreated",
+    details: DrawflowConnection
+  ): boolean;
+  public dispatch(
+    event: "connectionRemoved",
+    details: DrawflowConnection
+  ): boolean;
+  public dispatch(
+    event: "connectionSelected",
+    details: DrawflowConnection
+  ): boolean;
+  public dispatch(
+    event: "connectionStart",
+    details: DrawflowConnectionOut
+  ): boolean;
+  public dispatch(event: "connectionDeselected", details: true): boolean;
+  public dispatch(event: "contextmenu", details: MouseEvent): boolean;
+  public dispatch(event: "export", details: DrawflowData): boolean;
+  public dispatch(event: "import", details: "import"): boolean;
+  public dispatch(event: "keydown", details: KeyboardEvent): boolean;
+  public dispatch(event: "moduleChanged", details: string): boolean;
+  public dispatch(event: "moduleCreated", details: string): boolean;
+  public dispatch(event: "moduleRemoved", details: string): boolean;
+  public dispatch(event: "mouseMove", details: DrawflowPoint): boolean;
+  public dispatch(event: "mouseUp", details: MouseEvent | TouchEvent): boolean;
+  public dispatch(event: "nodeCreated", details: string): boolean;
+  public dispatch(event: "nodeDataChanged", details: string): boolean;
+  public dispatch(
     event: "nodeMoved",
     details: { id: string } & DrawflowPoint
   ): boolean;
-  dispatch(event: "nodeRemoved", details: string): boolean;
-  dispatch(event: "nodeSelected", details: string): boolean;
-  dispatch(event: "nodeUnselected", details: true): boolean;
-  dispatch(event: "removeReroute", details: string): boolean;
-  dispatch(event: "rerouteMoved", details: string): boolean;
-  dispatch(event: "translate", details: DrawflowPoint): boolean;
-  dispatch(
+  public dispatch(event: "nodeRemoved", details: string): boolean;
+  public dispatch(event: "nodeSelected", details: string): boolean;
+  public dispatch(event: "nodeDeselected", details: true): boolean;
+  public dispatch(event: "rerouteRemoved", details: string): boolean;
+  public dispatch(event: "rerouteMoved", details: string): boolean;
+  public dispatch(event: "translate", details: DrawflowPoint): boolean;
+  public dispatch(
     event: "updateNodes",
     details: { id: string; data: unknown }
   ): boolean;
-  dispatch(
+  public dispatch(
     event: "updateNodeId",
     details: { oldId: string; newId: string }
   ): boolean;
-  dispatch(event: "zoom", details: number): boolean;
-  dispatch(event: string, details: unknown): boolean;
-  dispatch(event: string, details: unknown): boolean {
+  public dispatch(event: "zoom", details: number): boolean;
+  public dispatch(event: string, details: unknown): boolean;
+  public dispatch(event: string, details: unknown): boolean {
     // Check if this event not exists
     if (this.events[event] === undefined) {
       // console.error(`This event: ${event} does not exist`);
@@ -2561,7 +2610,7 @@ export default class Drawflow {
     return true;
   }
 
-  getUuid(): string {
+  private getUuid(): string {
     // http://www.ietf.org/rfc/rfc4122.txt
 
     const s: string[] = [];
