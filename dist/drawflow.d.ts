@@ -17,13 +17,16 @@ export declare type RenderFunction = (options: {
 }) => void;
 export declare type DrawflowData = {
     drawflow: Record<string, {
-        data: Record<string, DrawflowNodeData>;
+        data: Record<string, DrawflowNode>;
     }>;
 };
-export declare type DrawflowNodeData = {
+export declare type DrawflowNodeData = Record<string, string | {
+    [key: string]: DrawflowNodeData;
+}>;
+export declare type DrawflowNode = {
     id: string;
     name: string;
-    data: Record<string, unknown>;
+    data: DrawflowNodeData;
     class: string;
     html: string;
     typenode: boolean | string | RenderFunction;
@@ -160,14 +163,14 @@ export default class Drawflow {
     createReroutePoint(ele: HTMLElement): void;
     removeReroutePoint(ele: HTMLElement): void;
     registerNode(name: string | number, html: unknown): void;
-    getNodeFromId(id: string): DrawflowNodeData;
+    getNodeFromId(id: string): DrawflowNode;
     getNodesFromName(name: string): string[];
     addNode(name: string, num_in: number, num_out: number, ele_pos_x: number, ele_pos_y: number, classoverride: string, data: unknown, html: string, typenode?: boolean): string;
-    _addNodeImport(dataNode: DrawflowNodeData, precanvas: HTMLElement): void;
-    _addRerouteImport(dataNode: DrawflowNodeData): void;
+    _addNodeImport(dataNode: DrawflowNode, precanvas: HTMLElement): void;
+    _addRerouteImport(dataNode: DrawflowNode): void;
     changeNodeID(oldId: string, newId: string): boolean;
     updateNodeValue(event: Event): void;
-    updateNodeDataFromId(id: string, data: Record<string, unknown>): void;
+    updateNodeDataFromId(id: string, data: DrawflowNodeData): void;
     addNodeInput(id: string): void;
     addNodeOutput(id: string): void;
     removeNodeInput(id: string, input_class: string): void;

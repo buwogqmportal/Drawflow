@@ -208,13 +208,18 @@ function callRender(
 }
 
 export type DrawflowData = {
-  drawflow: Record<string, { data: Record<string, DrawflowNodeData> }>;
+  drawflow: Record<string, { data: Record<string, DrawflowNode> }>;
 };
 
-export type DrawflowNodeData = {
+export type DrawflowNodeData = Record<
+  string,
+  string | { [key: string]: DrawflowNodeData }
+>;
+
+export type DrawflowNode = {
   id: string;
   name: string;
-  data: Record<string, unknown>;
+  data: DrawflowNodeData;
   class: string;
   html: string;
   typenode: boolean | string | RenderFunction;
@@ -1406,7 +1411,7 @@ export default class Drawflow {
     this.noderegister[name] = html;
   }
 
-  getNodeFromId(id: string): DrawflowNodeData {
+  getNodeFromId(id: string): DrawflowNode {
     const moduleName = this.getModuleFromNodeId(id);
     if (!moduleName) return;
     return JSON.parse(
@@ -1508,13 +1513,23 @@ export default class Drawflow {
 
     this.precanvas.appendChild(parent);
 
-    const json: DrawflowNodeData = {
+    const json: DrawflowNode = {
       id: newNodeId,
       name: name,
-      data:
-        data !== null && typeof data === "object"
-          ? (data as Record<string, unknown>)
-          : {},
+      data: (function convert(
+        data: unknown,
+        first = true
+      ): DrawflowNodeData | string {
+        if (
+          data === null ||
+          data === undefined ||
+          (typeof data !== "object" && first)
+        )
+          return {};
+        if (typeof data === "object" && !Array.isArray(data))
+          return convert(data, false);
+        return data.toString();
+      })(data) as DrawflowNodeData,
       class: classoverride,
       html: html,
       typenode: typenode,
@@ -1534,7 +1549,7 @@ export default class Drawflow {
     return newNodeId;
   }
 
-  _addNodeImport(dataNode: DrawflowNodeData, precanvas: HTMLElement) {
+  _addNodeImport(dataNode: DrawflowNode, precanvas: HTMLElement) {
     dataNode.id = dataNode.id.toString();
 
     const parent = document.createElement("div");
@@ -1628,7 +1643,7 @@ export default class Drawflow {
     this.precanvas.appendChild(parent);
   }
 
-  _addRerouteImport(dataNode: DrawflowNodeData) {
+  _addRerouteImport(dataNode: DrawflowNode) {
     const reroute_width = this.reroute_width;
     const reroute_fix_curvature = this.reroute_fix_curvature;
     const container = this.container;
@@ -1782,7 +1797,7 @@ export default class Drawflow {
           if (target[keys[index]] == null) {
             target[keys[index]] = {};
           }
-          target = target[keys[index]] as Record<string, unknown>;
+          target = target[keys[index]] as DrawflowNodeData;
         }
         target[keys[keys.length - 1]] = (etarget as HTMLInputElement).value;
         if (etarget.isContentEditable) {
@@ -1796,7 +1811,7 @@ export default class Drawflow {
     }
   }
 
-  updateNodeDataFromId(id: string, data: Record<string, unknown>) {
+  updateNodeDataFromId(id: string, data: DrawflowNodeData) {
     const moduleName = this.getModuleFromNodeId(id);
     this.drawflow.drawflow[moduleName].data[id].data = data;
     if (this.module === moduleName) {
