@@ -20,9 +20,9 @@ export declare type DrawflowData = {
         data: Record<string, DrawflowNode>;
     }>;
 };
-export declare type DrawflowNodeData = Record<string, string | {
-    [key: string]: DrawflowNodeData;
-}>;
+export declare type DrawflowNodeData = {
+    [key: string]: string | DrawflowNodeData;
+};
 export declare type DrawflowNode = {
     id: string;
     name: string;

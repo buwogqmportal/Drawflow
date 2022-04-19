@@ -211,10 +211,7 @@ export type DrawflowData = {
   drawflow: Record<string, { data: Record<string, DrawflowNode> }>;
 };
 
-export type DrawflowNodeData = Record<
-  string,
-  string | { [key: string]: DrawflowNodeData }
->;
+export type DrawflowNodeData = { [key: string]: string | DrawflowNodeData };
 
 export type DrawflowNode = {
   id: string;
@@ -1537,10 +1534,21 @@ export default class Drawflow {
           data === null ||
           data === undefined ||
           (typeof data !== "object" && first)
-        )
+        ) {
           return {};
-        if (typeof data === "object" && !Array.isArray(data))
-          return convert(data, false);
+        }
+        if (typeof data === "object" && !Array.isArray(data)) {
+          const obj: DrawflowNodeData = {};
+
+          for (const key in data) {
+            if (Object.prototype.hasOwnProperty.call(data, key)) {
+              const value = (data as Record<string, unknown>)[key];
+              obj[key] = convert(value);
+            }
+          }
+
+          return obj;
+        }
         return data.toString();
       })(data) as DrawflowNodeData,
       class: classoverride,
