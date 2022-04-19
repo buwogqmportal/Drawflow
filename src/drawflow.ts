@@ -70,6 +70,7 @@ export type RenderFunction = (options: {
   content: HTMLElement;
   editor: Drawflow;
   id: string;
+  data: DrawflowNode;
   event: EventListener;
 }) => void;
 
@@ -78,6 +79,7 @@ function callRender(
   render: RenderFunction,
   type: string | number,
   id: string,
+  data: DrawflowNode,
   content: HTMLElement
 ) {
   const events: Record<string, { listeners: EventCallback[] }> = {};
@@ -200,6 +202,7 @@ function callRender(
   render({
     register: editor.noderegister[type],
     id,
+    data,
     type,
     content,
     editor,
@@ -281,14 +284,14 @@ export default class Drawflow {
   private events: Record<string, { listeners: EventCallback[] }> = {};
   public precanvas: HTMLElement = null;
   public nodeId = 1;
-  private ele_selected: HTMLElement = null;
+  private ele_selected: HTMLElement | SVGElement = null;
   private node_selected: HTMLElement = null;
   private drag = false;
   private drag_point = false;
   private editor_selected = false;
   private connection = false;
   private connection_ele: SVGElement = null;
-  private connection_selected: HTMLElement = null;
+  private connection_selected: SVGElement = null;
   public canvas_x = 0;
   public canvas_y = 0;
   private pos_x = 0;
@@ -485,7 +488,7 @@ export default class Drawflow {
 
     this.dispatch("click", e);
 
-    const target = e.target as HTMLElement;
+    const target = e.target as HTMLElement | SVGElement;
 
     if (e instanceof MouseEvent && e.button === 1) {
       this.editor_selected = true;
@@ -534,7 +537,7 @@ export default class Drawflow {
             this.dispatch("nodeSelected", getNodeID(this.ele_selected.id));
           }
 
-          this.node_selected = this.ele_selected;
+          this.node_selected = this.ele_selected as HTMLElement;
           this.node_selected.classList.add("selected");
 
           // cancel drag if an input element was clicked on
@@ -556,7 +559,7 @@ export default class Drawflow {
         case "output":
           this.connection = true;
           clearSelection();
-          this._createConnection(target);
+          this._createConnection(target as HTMLElement);
           break;
         case "drawflow":
           clearSelection();
@@ -565,12 +568,14 @@ export default class Drawflow {
         case "main-path":
           clearSelection();
 
-          this.connection_selected = this.ele_selected;
+          this.connection_selected = this.ele_selected as SVGElement;
           this.connection_selected.classList.add("selected");
 
           this.dispatch(
             "connectionSelected",
-            getConnectionData(this.connection_selected.parentElement.classList)
+            getConnectionData(
+              this.connection_selected.ownerSVGElement.classList
+            )
           );
 
           if (this.reroute_fix_curvature) {
@@ -937,7 +942,7 @@ export default class Drawflow {
     }
 
     if ((e.target as HTMLElement).classList[0] === "point") {
-      this.removeReroutePoint(e.target as HTMLElement);
+      this.removeReroutePoint(e.target as SVGElement);
     }
   }
 
@@ -1071,7 +1076,7 @@ export default class Drawflow {
     const precanvasRect = precanvas.getBoundingClientRect();
     const path = this.connection_ele.children[0];
 
-    function getCenter(node: HTMLElement): [number, number] {
+    function getCenter(node: HTMLElement | SVGElement): [number, number] {
       const rect = node.getBoundingClientRect();
       return [
         (rect.x - precanvasRect.x + rect.width / 2) / zoom,
@@ -1158,7 +1163,7 @@ export default class Drawflow {
   }
 
   public updateConnection(
-    connection: HTMLElement,
+    connection: SVGElement,
     nodeFromElem?: HTMLElement,
     nodeToElem?: HTMLElement
   ) {
@@ -1283,19 +1288,19 @@ export default class Drawflow {
     const connectionsOut = container.querySelectorAll(`.${connectionOutTag}`);
 
     for (let i = 0; i < connectionsOut.length; i++) {
-      const connection = connectionsOut[i] as HTMLElement;
+      const connection = connectionsOut[i] as SVGElement;
       this.updateConnection(connection, nodeElem, null);
     }
 
     const connectionsIn = container.querySelectorAll(`.${connectionInTag}`);
 
     for (let i = 0; i < connectionsIn.length; i++) {
-      const connection = connectionsIn[i] as HTMLElement;
+      const connection = connectionsIn[i] as SVGElement;
       this.updateConnection(connection, null, nodeElem);
     }
   }
 
-  public createReroutePoint(ele: HTMLElement) {
+  public createReroutePoint(ele: SVGElement) {
     this.connection_selected.classList.remove("selected");
     const { output_id, input_id, output_class, input_class } =
       getConnectionData(this.connection_selected.parentElement.classList);
@@ -1383,12 +1388,12 @@ export default class Drawflow {
     }
 
     this.dispatch("rerouteCreated", output_id);
-    this.updateConnection(ele.parentElement);
+    this.updateConnection(ele.ownerSVGElement);
   }
 
-  public removeReroutePoint(ele: HTMLElement) {
+  public removeReroutePoint(ele: SVGElement) {
     const { output_id, input_id, output_class, input_class } =
-      getConnectionData(ele.parentElement.classList);
+      getConnectionData(ele.ownerSVGElement.classList);
 
     let numberPointPosition =
       Array.from(ele.parentElement.children).indexOf(ele) - 1;
@@ -1498,18 +1503,6 @@ export default class Drawflow {
     const content = document.createElement("div");
     content.classList.add("drawflow_content_node");
 
-    if (typenode === false) {
-      content.innerHTML = html;
-    } else if (typenode === true) {
-      content.appendChild(
-        (this.noderegister[html] as Element)?.cloneNode(true)
-      );
-    } else if (typeof typenode === "function") {
-      callRender(this, typenode, html, newNodeId, content);
-    } else {
-      callRender(this, this.render, html, newNodeId, content);
-    }
-
     insertObjectkeys(content, data);
 
     node.style.top = ele_pos_y + "px";
@@ -1559,6 +1552,18 @@ export default class Drawflow {
       pos_x: ele_pos_x,
       pos_y: ele_pos_y,
     };
+
+    if (typenode === false) {
+      content.innerHTML = html;
+    } else if (typenode === true) {
+      content.appendChild(
+        (this.noderegister[html] as Element)?.cloneNode(true)
+      );
+    } else if (typeof typenode === "function") {
+      callRender(this, typenode, html, newNodeId, json, content);
+    } else {
+      callRender(this, this.render, html, newNodeId, json, content);
+    }
 
     this.drawflow.drawflow[this.module].data[newNodeId] = json;
     this.dispatch("nodeCreated", newNodeId);
@@ -1645,9 +1650,23 @@ export default class Drawflow {
         (this.noderegister[dataNode.html] as HTMLElement).cloneNode(true)
       );
     } else if (typeof dataNode.typenode === "function") {
-      callRender(this, dataNode.typenode, dataNode.html, dataNode.id, content);
+      callRender(
+        this,
+        dataNode.typenode,
+        dataNode.html,
+        dataNode.id,
+        dataNode,
+        content
+      );
     } else {
-      callRender(this, this.render, dataNode.html, dataNode.id, content);
+      callRender(
+        this,
+        this.render,
+        dataNode.html,
+        dataNode.id,
+        dataNode,
+        content
+      );
     }
 
     insertObjectkeys(content, dataNode.data);

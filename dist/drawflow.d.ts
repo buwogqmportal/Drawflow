@@ -13,6 +13,7 @@ export declare type RenderFunction = (options: {
     content: HTMLElement;
     editor: Drawflow;
     id: string;
+    data: DrawflowNode;
     event: EventListener;
 }) => void;
 export declare type DrawflowData = {
@@ -155,10 +156,10 @@ export default class Drawflow {
     private _createConnection;
     private _drawConnectionTo;
     addConnection(id_output: string, id_input: string, output_class: string, input_class: string): void;
-    updateConnection(connection: HTMLElement, nodeFromElem?: HTMLElement, nodeToElem?: HTMLElement): void;
+    updateConnection(connection: SVGElement, nodeFromElem?: HTMLElement, nodeToElem?: HTMLElement): void;
     updateNodeConnections(id: string): void;
-    createReroutePoint(ele: HTMLElement): void;
-    removeReroutePoint(ele: HTMLElement): void;
+    createReroutePoint(ele: SVGElement): void;
+    removeReroutePoint(ele: SVGElement): void;
     registerNode(name: string | number, html: unknown): void;
     getNodeFromId(id: string): DrawflowNode;
     getNodesFromName(name: string): string[];
