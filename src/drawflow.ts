@@ -1456,7 +1456,7 @@ export default class Drawflow {
     classoverride: string,
     data: unknown,
     html: string,
-    typenode: boolean | RenderFunction = false
+    typenode: boolean | "render" | RenderFunction = false
   ): string {
     let newNodeId;
 
@@ -1536,7 +1536,7 @@ export default class Drawflow {
           for (const key in data) {
             if (Object.prototype.hasOwnProperty.call(data, key)) {
               const value = (data as Record<string, unknown>)[key];
-              obj[key] = convert(value);
+              obj[key] = convert(value, false);
             }
           }
 

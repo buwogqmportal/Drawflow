@@ -163,7 +163,7 @@ export default class Drawflow {
     registerNode(name: string | number, html: unknown): void;
     getNodeFromId(id: string): DrawflowNode;
     getNodesFromName(name: string): string[];
-    addNode(name: string, num_in: number, num_out: number, ele_pos_x: number, ele_pos_y: number, classoverride: string, data: unknown, html: string, typenode?: boolean | RenderFunction): string;
+    addNode(name: string, num_in: number, num_out: number, ele_pos_x: number, ele_pos_y: number, classoverride: string, data: unknown, html: string, typenode?: boolean | "render" | RenderFunction): string;
     private _addNodeImport;
     private _addRerouteImport;
     changeNodeID(oldId: string, newId: string): boolean;
