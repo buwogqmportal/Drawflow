@@ -1451,7 +1451,7 @@ export default class Drawflow {
     classoverride: string,
     data: unknown,
     html: string,
-    typenode = false
+    typenode: boolean | RenderFunction = false
   ): string {
     let newNodeId;
 
