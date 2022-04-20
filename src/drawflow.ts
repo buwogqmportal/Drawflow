@@ -946,10 +946,10 @@ export default class Drawflow {
     }
   }
 
-  public refreshZoom() {
+  public refreshZoom(silent = false) {
     this.zoom = Math.min(Math.max(this.zoom_min, this.zoom), this.zoom_max);
 
-    this.dispatch("zoom", this.zoom);
+    if (!silent) this.dispatch("zoom", this.zoom);
     this.canvas_x = (this.canvas_x / this.zoom_last_value) * this.zoom;
     this.canvas_y = (this.canvas_y / this.zoom_last_value) * this.zoom;
     this.zoom_last_value = this.zoom;
@@ -1013,8 +1013,8 @@ export default class Drawflow {
     this.nodeId = number;
   }
 
-  public deselectConnection() {
-    this.dispatch("connectionDeselected", true);
+  public deselectConnection(silent = false) {
+    if (!silent) this.dispatch("connectionDeselected", true);
     if (this.reroute_fix_curvature) {
       this.connection_selected.parentElement
         .querySelectorAll(".main-path")
@@ -1098,7 +1098,8 @@ export default class Drawflow {
     id_output: string,
     id_input: string,
     output_class: string,
-    input_class: string
+    input_class: string,
+    silent = false
   ) {
     const nodeOneModule = this.getModuleFromNodeId(id_output);
     const nodeTwoModule = this.getModuleFromNodeId(id_input);
@@ -1153,12 +1154,13 @@ export default class Drawflow {
         this.updateNodeConnections("node-" + id_input);
       }
 
-      this.dispatch("connectionCreated", {
-        output_id: id_output,
-        input_id: id_input,
-        output_class: output_class,
-        input_class: input_class,
-      });
+      if (!silent)
+        this.dispatch("connectionCreated", {
+          output_id: id_output,
+          input_id: id_input,
+          output_class: output_class,
+          input_class: input_class,
+        });
     }
   }
 
@@ -1300,7 +1302,7 @@ export default class Drawflow {
     }
   }
 
-  public createReroutePoint(ele: SVGElement) {
+  public createReroutePoint(ele: SVGElement, silent = false) {
     this.connection_selected.classList.remove("selected");
     const { output_id, input_id, output_class, input_class } =
       getConnectionData(this.connection_selected.parentElement.classList);
@@ -1387,11 +1389,11 @@ export default class Drawflow {
       });
     }
 
-    this.dispatch("rerouteCreated", output_id);
+    if (!silent) this.dispatch("rerouteCreated", output_id);
     this.updateConnection(ele.ownerSVGElement);
   }
 
-  public removeReroutePoint(ele: SVGElement) {
+  public removeReroutePoint(ele: SVGElement, silent = false) {
     const { output_id, input_id, output_class, input_class } =
       getConnectionData(ele.ownerSVGElement.classList);
 
@@ -1418,7 +1420,7 @@ export default class Drawflow {
     ].connections[searchConnection].points.splice(numberPointPosition, 1);
 
     ele.remove();
-    this.dispatch("rerouteRemoved", output_id);
+    if (!silent) this.dispatch("rerouteRemoved", output_id);
     this.updateNodeConnections(`node-${output_id}`);
   }
 
@@ -1456,7 +1458,8 @@ export default class Drawflow {
     classoverride: string,
     data: unknown,
     html: string,
-    typenode: boolean | "render" | RenderFunction = false
+    typenode: boolean | "render" | RenderFunction = false,
+    silent = false
   ): string {
     let newNodeId;
 
@@ -1566,7 +1569,7 @@ export default class Drawflow {
     }
 
     this.drawflow.drawflow[this.module].data[newNodeId] = json;
-    this.dispatch("nodeCreated", newNodeId);
+    if (!silent) this.dispatch("nodeCreated", newNodeId);
 
     if (!this.useuuid) {
       this.nodeId++;
@@ -1750,7 +1753,7 @@ export default class Drawflow {
     }
   }
 
-  public changeNodeID(oldId: string, newId: string): boolean {
+  public changeNodeID(oldId: string, newId: string, silent: false): boolean {
     const moduleName = this.getModuleFromNodeId(oldId);
 
     if (!moduleName) return false;
@@ -1815,12 +1818,12 @@ export default class Drawflow {
       );
     });
 
-    this.dispatch("updateNodeId", { oldId, newId: node.id });
+    if (!silent) this.dispatch("updateNodeId", { oldId, newId: node.id });
 
     return true;
   }
 
-  public updateNodeValue(event: Event) {
+  public updateNodeValue(event: Event, silent = false) {
     const etarget = event.target as HTMLElement;
     const attr = etarget.attributes;
 
@@ -1843,10 +1846,13 @@ export default class Drawflow {
         if (etarget.isContentEditable) {
           target[keys[keys.length - 1]] = etarget.innerText;
         }
-        this.dispatch(
-          "nodeDataChanged",
-          getNodeID(etarget.closest(".drawflow_content_node").parentElement.id)
-        );
+        if (!silent)
+          this.dispatch(
+            "nodeDataChanged",
+            getNodeID(
+              etarget.closest(".drawflow_content_node").parentElement.id
+            )
+          );
       }
     }
   }
@@ -2059,17 +2065,17 @@ export default class Drawflow {
     this.updateNodeConnections("node-" + id);
   }
 
-  public removeNodeId(id: string) {
+  public removeNodeId(id: string, silent = true) {
     this.removeNodeConnectionsByNodeId(id);
     const moduleName = this.getModuleFromNodeId(getNodeID(id));
     if (this.module === moduleName) {
       this.container.querySelector(`#${id}`).remove();
     }
     delete this.drawflow.drawflow[moduleName].data[getNodeID(id)];
-    this.dispatch("nodeRemoved", getNodeID(id));
+    if (!silent) this.dispatch("nodeRemoved", getNodeID(id));
   }
 
-  public removeSelectedConnection() {
+  public removeSelectedConnection(silent = false) {
     if (this.connection_selected != null) {
       const elem = this.connection_selected.parentElement;
 
@@ -2097,12 +2103,13 @@ export default class Drawflow {
       );
       moduleData[input_id].inputs[input_class].connections.splice(index_in, 1);
 
-      this.dispatch("connectionRemoved", {
-        output_id: output_id,
-        input_id: input_id,
-        output_class: output_class,
-        input_class: input_class,
-      });
+      if (!silent)
+        this.dispatch("connectionRemoved", {
+          output_id: output_id,
+          input_id: input_id,
+          output_class: output_class,
+          input_class: input_class,
+        });
       this.connection_selected = null;
     }
   }
@@ -2111,7 +2118,8 @@ export default class Drawflow {
     id_output: string,
     id_input: string,
     output_class: string,
-    input_class: string
+    input_class: string,
+    silent = false
   ): boolean {
     const nodeOneModule = this.getModuleFromNodeId(id_output);
     const nodeTwoModule = this.getModuleFromNodeId(id_input);
@@ -2162,12 +2170,13 @@ export default class Drawflow {
           input_class
         ].connections.splice(index_in, 1);
 
-        this.dispatch("connectionRemoved", {
-          output_id: id_output,
-          input_id: id_input,
-          output_class: output_class,
-          input_class: input_class,
-        });
+        if (!silent)
+          this.dispatch("connectionRemoved", {
+            output_id: id_output,
+            input_id: id_input,
+            output_class: output_class,
+            input_class: input_class,
+          });
         return true;
       } else {
         return false;
@@ -2177,7 +2186,7 @@ export default class Drawflow {
     }
   }
 
-  public removeNodeConnectionsByNodeId(id: string) {
+  public removeNodeConnectionsByNodeId(id: string, silent = false) {
     const connectionInTag = "node_in_" + id;
     const connectionOutTag = "node_out_" + id;
 
@@ -2210,12 +2219,13 @@ export default class Drawflow {
 
       connectionsOut[i].remove();
 
-      this.dispatch("connectionRemoved", {
-        output_id,
-        input_id,
-        output_class,
-        input_class,
-      });
+      if (!silent)
+        this.dispatch("connectionRemoved", {
+          output_id,
+          input_id,
+          output_class,
+          input_class,
+        });
     }
 
     const connectionsIn = this.container.querySelectorAll(
@@ -2245,12 +2255,13 @@ export default class Drawflow {
 
       connectionsIn[i].remove();
 
-      this.dispatch("connectionRemoved", {
-        output_id,
-        input_id,
-        output_class,
-        input_class,
-      });
+      if (!silent)
+        this.dispatch("connectionRemoved", {
+          output_id,
+          input_id,
+          output_class,
+          input_class,
+        });
     }
   }
 
@@ -2272,13 +2283,13 @@ export default class Drawflow {
     }
   }
 
-  public addModule(name: string) {
+  public addModule(name: string, silent = false) {
     this.drawflow.drawflow[name] = { data: {} };
-    this.dispatch("moduleCreated", name);
+    if (!silent) this.dispatch("moduleCreated", name);
   }
 
-  public changeModule(name: string) {
-    this.dispatch("moduleChanged", name);
+  public changeModule(name: string, silent = false) {
+    if (!silent) this.dispatch("moduleChanged", name);
     this.module = name;
     this.precanvas.innerHTML = "";
     this.canvas_x = 0;
@@ -2293,12 +2304,12 @@ export default class Drawflow {
     this.import(this.drawflow, false);
   }
 
-  public removeModule(name: string) {
+  public removeModule(name: string, silent = false) {
     if (this.module === name) {
       this.changeModule("Home");
     }
     delete this.drawflow.drawflow[name];
-    this.dispatch("moduleRemoved", name);
+    if (!silent) this.dispatch("moduleRemoved", name);
   }
 
   public clearSelectedModule() {
@@ -2315,17 +2326,17 @@ export default class Drawflow {
     this.drawflow = { drawflow: { Home: { data: {} } } };
   }
 
-  public export(): DrawflowData {
+  public export(silent = false): DrawflowData {
     const dataExport = JSON.parse(JSON.stringify(this.drawflow));
-    this.dispatch("export", dataExport);
+    if (!silent) this.dispatch("export", dataExport);
     return dataExport;
   }
 
-  public import(data: DrawflowData, notify = true) {
+  public import(data: DrawflowData, silent = false) {
     this.clear();
     this.drawflow = JSON.parse(JSON.stringify(data));
     this.load();
-    if (notify) {
+    if (!silent) {
       this.dispatch("import", "import");
     }
   }
