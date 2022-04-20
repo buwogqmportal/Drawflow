@@ -971,10 +971,10 @@ export default class Drawflow {
     this.zoomLevel -= value;
   }
 
-  public resetZoom() {
+  public resetZoom(silent = false) {
     if (this.zoom != 1) {
       this.zoom = 1;
-      this.refreshZoom();
+      this.refreshZoom(silent);
     }
   }
 
@@ -1753,7 +1753,7 @@ export default class Drawflow {
     }
   }
 
-  public changeNodeID(oldId: string, newId: string, silent: false): boolean {
+  public changeNodeID(oldId: string, newId: string, silent = false): boolean {
     const moduleName = this.getModuleFromNodeId(oldId);
 
     if (!moduleName) return false;
@@ -1905,7 +1905,7 @@ export default class Drawflow {
     ] = { connections: [] };
   }
 
-  public removeNodeInput(id: string, input_class: string) {
+  public removeNodeInput(id: string, input_class: string, silent = false) {
     const moduleName = this.getModuleFromNodeId(id);
     const nodeDataRef = this.drawflow.drawflow[moduleName].data[id];
 
@@ -1916,7 +1916,13 @@ export default class Drawflow {
     }
 
     for (const connection of nodeDataRef.inputs[input_class].connections) {
-      this.removeConnection(connection.node, id, connection.input, input_class);
+      this.removeConnection(
+        connection.node,
+        id,
+        connection.input,
+        input_class,
+        silent
+      );
     }
 
     // update inputs
@@ -1982,7 +1988,7 @@ export default class Drawflow {
     this.updateNodeConnections("node-" + id);
   }
 
-  public removeNodeOutput(id: string, output_class: string) {
+  public removeNodeOutput(id: string, output_class: string, silent = false) {
     const moduleName = this.getModuleFromNodeId(id);
     const nodeDataRef = this.drawflow.drawflow[moduleName].data[id];
 
@@ -1997,7 +2003,8 @@ export default class Drawflow {
         connection.node,
         id,
         connection.output,
-        output_class
+        output_class,
+        silent
       );
     }
 
@@ -2066,7 +2073,7 @@ export default class Drawflow {
   }
 
   public removeNodeId(id: string, silent = true) {
-    this.removeNodeConnectionsByNodeId(id);
+    this.removeNodeConnectionsByNodeId(id, silent);
     const moduleName = this.getModuleFromNodeId(getNodeID(id));
     if (this.module === moduleName) {
       this.container.querySelector(`#${id}`).remove();
@@ -2306,7 +2313,7 @@ export default class Drawflow {
 
   public removeModule(name: string, silent = false) {
     if (this.module === name) {
-      this.changeModule("Home");
+      this.changeModule("Home", silent);
     }
     delete this.drawflow.drawflow[name];
     if (!silent) this.dispatch("moduleRemoved", name);

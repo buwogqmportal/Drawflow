@@ -149,7 +149,7 @@ export default class Drawflow {
     refreshZoom(silent?: boolean): void;
     zoomIn(value?: number): void;
     zoomOut(value?: number): void;
-    resetZoom(): void;
+    resetZoom(silent?: boolean): void;
     load(): void;
     deselectConnection(silent?: boolean): void;
     createCurvature(start_pos_x: number, start_pos_y: number, end_pos_x: number, end_pos_y: number, curvature: number): string;
@@ -166,13 +166,13 @@ export default class Drawflow {
     addNode(name: string, num_in: number, num_out: number, ele_pos_x: number, ele_pos_y: number, classoverride: string, data: unknown, html: string, typenode?: boolean | "render" | RenderFunction, silent?: boolean): string;
     private _addNodeImport;
     private _addRerouteImport;
-    changeNodeID(oldId: string, newId: string, silent: false): boolean;
+    changeNodeID(oldId: string, newId: string, silent?: boolean): boolean;
     updateNodeValue(event: Event, silent?: boolean): void;
     updateNodeDataFromId(id: string, data: DrawflowNodeData): void;
     addNodeInput(id: string): void;
     addNodeOutput(id: string): void;
-    removeNodeInput(id: string, input_class: string): void;
-    removeNodeOutput(id: string, output_class: string): void;
+    removeNodeInput(id: string, input_class: string, silent?: boolean): void;
+    removeNodeOutput(id: string, output_class: string, silent?: boolean): void;
     removeNodeId(id: string, silent?: boolean): void;
     removeSelectedConnection(silent?: boolean): void;
     removeConnection(id_output: string, id_input: string, output_class: string, input_class: string, silent?: boolean): boolean;
