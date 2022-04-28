@@ -1111,13 +1111,12 @@ export default class Drawflow {
     // Check connection exist
     const moduleData = this.drawflow.drawflow[nodeOneModule].data;
 
-    if (!moduleData) return;
-
     if (
+      !moduleData ||
       !moduleData[id_output] ||
       !moduleData[id_output].outputs[output_class] ||
       !moduleData[id_input] ||
-      !moduleData[id_input].outputs[input_class]
+      !moduleData[id_input].inputs[input_class]
     )
       return;
 
