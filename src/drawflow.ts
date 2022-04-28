@@ -1108,60 +1108,67 @@ export default class Drawflow {
       return;
     }
 
-    const dataNode = this.getNodeFromId(id_output);
-    let exist = false;
-
-    for (const output of dataNode.outputs[output_class].connections) {
-      if (output.node == id_input && output.output == input_class) {
-        exist = true;
-      }
-    }
-
     // Check connection exist
-    if (!exist) {
-      const moduleData = this.drawflow.drawflow[nodeOneModule].data;
-      //Create Connection
-      moduleData[id_output].outputs[output_class].connections.push({
-        node: id_input.toString(),
-        output: input_class,
-      });
-      moduleData[id_input].inputs[input_class].connections.push({
-        node: id_output.toString(),
-        input: output_class,
-      });
+    const moduleData = this.drawflow.drawflow[nodeOneModule].data;
 
-      if (this.module === nodeOneModule) {
-        //Draw connection
-        const connection = document.createElementNS(
-          "http://www.w3.org/2000/svg",
-          "svg"
-        );
-        const path = document.createElementNS(
-          "http://www.w3.org/2000/svg",
-          "path"
-        );
-        path.classList.add("main-path");
-        path.setAttributeNS(null, "d", "");
-        // path.innerHTML = 'a';
-        connection.classList.add("connection");
-        connection.classList.add("node_in_node-" + id_input);
-        connection.classList.add("node_out_node-" + id_output);
-        connection.classList.add(output_class);
-        connection.classList.add(input_class);
-        connection.appendChild(path);
-        this.precanvas.appendChild(connection);
-        this.updateNodeConnections("node-" + id_output);
-        this.updateNodeConnections("node-" + id_input);
+    if (!moduleData) return;
+
+    if (
+      !moduleData[id_output] ||
+      !moduleData[id_output].outputs[output_class] ||
+      !moduleData[id_input] ||
+      !moduleData[id_input].outputs[input_class]
+    )
+      return;
+
+    for (const output of moduleData[id_output].outputs[output_class]
+      .connections) {
+      if (output.node == id_input && output.output == input_class) {
+        return;
       }
-
-      if (!silent)
-        this.dispatch("connectionCreated", {
-          output_id: id_output,
-          input_id: id_input,
-          output_class: output_class,
-          input_class: input_class,
-        });
     }
+
+    //Create Connection
+    moduleData[id_output].outputs[output_class].connections.push({
+      node: id_input.toString(),
+      output: input_class,
+    });
+    moduleData[id_input].inputs[input_class].connections.push({
+      node: id_output.toString(),
+      input: output_class,
+    });
+
+    if (this.module === nodeOneModule) {
+      //Draw connection
+      const connection = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "svg"
+      );
+      const path = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "path"
+      );
+      path.classList.add("main-path");
+      path.setAttributeNS(null, "d", "");
+      // path.innerHTML = 'a';
+      connection.classList.add("connection");
+      connection.classList.add("node_in_node-" + id_input);
+      connection.classList.add("node_out_node-" + id_output);
+      connection.classList.add(output_class);
+      connection.classList.add(input_class);
+      connection.appendChild(path);
+      this.precanvas.appendChild(connection);
+      this.updateNodeConnections("node-" + id_output);
+      this.updateNodeConnections("node-" + id_input);
+    }
+
+    if (!silent)
+      this.dispatch("connectionCreated", {
+        output_id: id_output,
+        input_id: id_input,
+        output_class: output_class,
+        input_class: input_class,
+      });
   }
 
   public updateConnection(

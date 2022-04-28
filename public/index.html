@@ -191,6 +191,7 @@
     <script>
       var id = document.getElementById("drawflow");
       const editor = new Drawflow(id);
+      window.editor = editor;
       editor.reroute = true;
       editor.reroute_fix_curvature = true;
       editor.force_first_input = false;
@@ -297,7 +298,7 @@
     })
 */
       editor.on("nodeMoved", function (id) {
-        console.log("Node moved " + id);
+        console.log("Node moved " + JSON.stringify(id));
       });
 
       editor.on("zoom", function (zoom) {
